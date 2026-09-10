@@ -102,6 +102,7 @@ struct HomeView: View {
                     BarklyButton(title: "Analyze Your Dog", icon: "waveform") {
                         app.openAnalyzer(.record)
                     }
+                    .accessibilityIdentifier("home_analyze_cta")
                 }
             }
         }
