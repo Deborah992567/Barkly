@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct DogSelectorView: View {
     @Environment(AppContainer.self) private var app
@@ -12,6 +13,10 @@ struct DogSelectorView: View {
                         DogSelectRow(dog: dog, isSelected: dog.id == app.selectedDogID) {
                             Haptics.medium()
                             app.selectDog(id: dog.id)
+                            UIAccessibility.post(
+                                notification: .announcement,
+                                argument: "Now analyzing with \(dog.name)"
+                            )
                             dismiss()
                         }
                     }
@@ -70,6 +75,7 @@ private struct DogSelectRow: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 }
 
