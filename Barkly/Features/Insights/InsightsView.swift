@@ -24,7 +24,12 @@ struct InsightsView: View {
                 EmptyStateView(
                     icon: "chart.bar.xaxis",
                     title: "No patterns yet",
-                    message: "Record a sound or analyze a video with \(app.selectedDog?.name ?? "your dog") to start spotting behavior patterns."
+                    message: "Record a sound or analyze a video with \(app.selectedDog?.name ?? "your dog") to start spotting behavior patterns.",
+                    actionTitle: "Analyze a Sound",
+                    action: {
+                        Haptics.light()
+                        app.openAnalyzer(.record)
+                    }
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             )
