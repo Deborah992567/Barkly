@@ -23,7 +23,7 @@ This monorepo contains two workstreams:
 
 A production-oriented API foundation:
 
-- FastAPI (async) + PostgreSQL via async SQLAlchemy + Alembic migrations.
+- FastAPI (async) + MariaDB via async SQLAlchemy + Alembic migrations.
 - Ownership-scoped auth (JWT) for dogs, analyses, media, and history.
 - Strict analysis lifecycle (`CREATED → QUEUED → PROCESSING → COMPLETED | FAILED`)
   with idempotent creation and first-class failure state.
@@ -31,7 +31,7 @@ A production-oriented API foundation:
   placeholder; no fake inference, no fake metrics, no datasets yet.
 - Versioned API under `/api/v1`, structured JSON logs with request IDs, and a
   standardized error envelope.
-- 78-test suite (SQLite in-memory by default, runnable against PostgreSQL)
+- 78-test suite (SQLite in-memory by default, runnable against MariaDB)
   covering auth, dogs, media, analyses, history, feedback, error contract,
   health probes, and migration round-trips.
 

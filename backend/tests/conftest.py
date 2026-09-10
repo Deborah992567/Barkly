@@ -2,8 +2,8 @@
 
 The test suite runs hermetically against an in-memory SQLite database via the
 same async engine the application uses, so it never touches a developer's real
-database. Export TEST_POSTGRES_URL to also exercise migrations against real
-PostgreSQL.
+database. Export TEST_DATABASE_URL to also exercise migrations against real
+MariaDB/MySQL.
 """
 
 from __future__ import annotations

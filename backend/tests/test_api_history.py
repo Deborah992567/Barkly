@@ -37,7 +37,11 @@ async def test_history_is_newest_first(client: AsyncClient, user_headers: dict) 
     body = response.json()
     assert body["total"] == 3
     assert body["has_next"] is False
-    assert [item["analysis_id"] for item in body["items"]] == list(reversed(ids))
+    # Newest first, newest ties broken by id for a deterministic total order.
+    # MariaDB DATETIME is second-precision, so same-second inserts tie here.
+    assert {item["analysis_id"] for item in body["items"]} == set(ids)
+    keys = [(item["created_at"], item["analysis_id"]) for item in body["items"]]
+    assert keys == sorted(keys, reverse=True)
 
 
 async def test_history_pagination(client: AsyncClient, user_headers: dict) -> None:

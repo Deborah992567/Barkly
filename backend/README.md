@@ -2,7 +2,7 @@
 
 Production-oriented foundation and AI-ready contract for BARKLY's
 dog-behavior interpretation service. Built with FastAPI, async SQLAlchemy,
-PostgreSQL, and Alembic. Ships an **AI-provider abstraction** with a clearly
+MariaDB, and Alembic. Ships an **AI-provider abstraction** with a clearly
 labelled development placeholder — no inference is faked as real ML.
 
 - API contract: [`docs/api-contract.md`](docs/api-contract.md)
@@ -14,7 +14,7 @@ labelled development placeholder — no inference is faked as real ML.
 
 - macOS with Homebrew (the commands below are for a fresh macOS machine)
 - Python 3.11+ (developed on 3.14)
-- PostgreSQL 15+ (optional for development; **required** for production)
+- MariaDB 10.5+ (optional for development; **required** for production)
 
 ## 1. Virtual environment
 
@@ -37,25 +37,24 @@ Edit `.env` (or export `BARKLY_` variables). Everything defaults to a local
 developer setup; the only required value in production is `JWT_SECRET` (≥32
 chars). See `docs/architecture.md → §8` for the full surface.
 
-## 3. PostgreSQL (local development)
+## 3. MariaDB (local development)
 
 On macOS with Homebrew:
 
 ```sh
-brew install postgresql@17
-/opt/homebrew/opt/postgresql@17/bin/pg_ctl -D /tmp/barkly-pg -l /tmp/barkly-pg.log \
-  -o "-p 5455" start
-/opt/homebrew/opt/postgresql@17/bin/createdb -p 5455 -U barkly barkly_dev
-/opt/homebrew/opt/postgresql@17/bin/createdb -p 5455 -U barkly barkly_test
+brew install mariadb
+/opt/homebrew/bin/mysql_install_db --datadir=/tmp/barkly-mariadb --auth-root-authentication-method=normal
+/opt/homebrew/bin/mysqld --datadir=/tmp/barkly-mariadb --port=3306 --socket=/tmp/barkly-mariadb.sock &
+/opt/homebrew/bin/mysql -u root -e "CREATE DATABASE barkly_dev; CREATE DATABASE barkly_test; CREATE USER IF NOT EXISTS 'barkly'@'localhost' IDENTIFIED BY 'barkly'; GRANT ALL PRIVILEGES ON *.* TO 'barkly'@'localhost';"
 ```
 
 Point `.env` at it:
 
 ```sh
-DATABASE_URL=postgresql+asyncpg://barkly@127.0.0.1:5455/barkly_dev
+DATABASE_URL=mysql+aiomysql://barkly:barkly@127.0.0.1:3306/barkly_dev
 ```
 
-Any PostgreSQL instance works; the port/credentials are just the ones used
+Any MariaDB instance works; the port/credentials are just the ones used
 during development on this machine.
 
 ## 4. Migrations
@@ -69,7 +68,7 @@ cd backend
 
 The URL is read from `BARKLY_DATABASE_URL` (env) or `.env` — never duplicated
 in `alembic.ini`. Migrations are portable (no PostgreSQL-only constructs) and
-verified against both SQLite and PostgreSQL.
+verified against both SQLite and MariaDB.
 
 ## 5. Running the API
 
@@ -92,12 +91,12 @@ cd backend
 BARKLY_ENVIRONMENT=test ../.venv/bin/pytest
 ```
 
-Run against real PostgreSQL (also verifies the migration path there):
+Run against real MariaDB (also verifies the migration path there):
 
 ```sh
 BARKLY_ENVIRONMENT=test \
-BARKLY_DATABASE_URL=postgresql+asyncpg://barkly@127.0.0.1:5455/barkly_test \
-TEST_POSTGRES_URL=postgresql+psycopg://barkly@127.0.0.1:5455/barkly_test \
+BARKLY_DATABASE_URL=mysql+aiomysql://barkly:barkly@127.0.0.1:3306/barkly_test \
+TEST_DATABASE_URL=mysql+aiomysql://barkly:barkly@127.0.0.1:3306/barkly_test \
 ../.venv/bin/pytest
 ```
 

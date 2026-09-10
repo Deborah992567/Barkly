@@ -11,9 +11,9 @@ media handling that never exposes internal storage.
 
 Design constraints honored throughout:
 
-- Async I/O end to end (SQLAlchemy 2.x async + asyncpg).
+- Async I/O end to end (SQLAlchemy 2.x async + aiomysql).
 - SQLite is used **only** in tests (in-memory, hermetic); production targets
-  PostgreSQL via Alembic migrations.
+  MariaDB via Alembic migrations.
 - No Redis, no Celery, no Kubernetes, no Nginx — a single FastAPI process is
   deliberately kept deployable as one unit for this phase.
 - No fake metrics, datasets, or model training; the provider interface is the
@@ -27,7 +27,7 @@ backend/
 ├── alembic.ini                 # migration config
 ├── migrations/
 │   ├── env.py                  # async env; URL from BARKLY_DATABASE_URL
-│   └── versions/               # initial_schema (portable, 0 postgres-only SQL)
+│   └── versions/               # initial_schema (  portable, 0 MariaDB-only SQL)
 ├── app/
 │   ├── main.py                 # create_app(): middleware, handlers, routers
 │   ├── core/                   # config, logging, context, security, errors
@@ -50,7 +50,7 @@ client ─▶ middleware (request/correlation id, JSON request logging)
        ─▶ auth dependency (JWT → user)
        ─▶ router → service (business rules)
        ─▶ repository (ownership-scoped SQL)
-       ─▶ PostgreSQL
+       ─▶ MariaDB
        ─▶ serializer → response model
 ```
 
@@ -109,7 +109,7 @@ schemas; serializers translate ORM → response.
 ## 7. Dependencies (vendored version family)
 
 - FastAPI / Uvicorn, Pydantic v2 + pydantic-settings
-- SQLAlchemy 2.x (async), Alembic, asyncpg, aiosqlite (tests), psycopg (migrations/tests)
+- SQLAlchemy 2.x (async), Alembic, aiomysql, aiosqlite (tests), PyMySQL (migrations/tests)
 - PyJWT (HS256), bcrypt
 - pytest + pytest-asyncio + httpx (tests), ruff (lint/format)
 
@@ -122,7 +122,7 @@ All settings are read from environment variables with the `BARKLY_` prefix
 
 | Setting | Default | Notes |
 | --- | --- | --- |
-| `BARKLY_DATABASE_URL` | local postgres (asyncpg) | prod must be PostgreSQL |
+| `BARKLY_DATABASE_URL` | local MariaDB (aiomysql) | prod must be MariaDB |
 | `BARKLY_JWT_SECRET` | dev-only fallback | ≥32 chars required in prod |
 | `BARKLY_AI_PROVIDER` | `development-placeholder` | future: real model ids |
 | `BARKLY_MEDIA_STORAGE_PROVIDER` | `local` | storage abstraction |

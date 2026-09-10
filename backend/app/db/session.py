@@ -1,6 +1,6 @@
 """Async engine and session factory.
 
-Production targets PostgreSQL (asyncpg/psycopg). In-memory SQLite is supported
+Production targets MariaDB (aiomysql/PyMySQL). In-memory SQLite is supported
 so the full API test suite can run hermetically against the same dependency
 graph; the in-memory URL must be combined with a StaticPool so all requests share
 one underlying connection.

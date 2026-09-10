@@ -1,8 +1,9 @@
 """Migration tests.
 
 Runs the Alembic history against an ephemeral SQLite database by default.
-When TEST_POSTGRES_URL is exported the same checks run against real
-PostgreSQL, verifying the production-friendly migration path.
+When TEST_DATABASE_URL is exported the same checks run against the real
+driver/database there (e.g. MariaDB/MySQL), verifying the production-friendly
+migration path.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 @pytest_asyncio.fixture
 async def migration_engine():
-    url = os.environ.get("TEST_POSTGRES_URL")
+    url = os.environ.get("TEST_DATABASE_URL")
     if url:
         engine = create_async_engine(url)
         yield engine
@@ -46,6 +47,37 @@ def _alembic_config(url: str) -> Config:
     return cfg
 
 
+def _is_sqlite(url: str) -> bool:
+    return url.startswith("sqlite")
+
+
+def _is_mysql(url: str) -> bool:
+    return "mysql" in url.split("://", 1)[0]
+
+
+async def _tables(conn) -> set[str]:
+    if _is_sqlite(conn.engine.url.render_as_string()):
+        rows = (
+            (await conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'")))
+            .scalars()
+            .all()
+        )
+        return set(rows)
+    rows = (
+        (
+            await conn.execute(
+                text(
+                    "SELECT table_name FROM information_schema.tables "
+                    "WHERE table_schema = DATABASE()"
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return set(rows)
+
+
 async def test_migrations_roundtrip(migration_engine, monkeypatch) -> None:
     url = migration_engine.url.render_as_string(hide_password=False)
     config = _alembic_config(url)
@@ -62,50 +94,16 @@ async def test_migrations_roundtrip(migration_engine, monkeypatch) -> None:
 
     await loop.run_in_executor(None, _upgrade)
     async with migration_engine.connect() as conn:
-        rows = (
-            (await conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'")))
-            .scalars()
-            .all()
-            if url.startswith("sqlite")
-            else (
-                await conn.execute(
-                    text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
-                )
-            )
-            .scalars()
-            .all()
-        )
-        table_names = {"analyses", "analysis_observations", "analysis_feedback", "media_assets"}
-        if url.startswith("sqlite"):
-            assert table_names.issubset(set(rows))
-        else:
-            assert table_names.issubset(set(rows))
+        table_names = {
+            "analyses",
+            "analysis_observations",
+            "analysis_feedback",
+            "media_assets",
+        }
+        assert table_names.issubset(await _tables(conn))
 
     await loop.run_in_executor(None, _downgrade)
     async with migration_engine.connect() as conn:
-        if url.startswith("sqlite"):
-            rows = (
-                (
-                    await conn.execute(
-                        text("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            assert rows == []
-        else:
-            # alembic_version may remain; business tables must be gone
-            rows = (
-                (
-                    await conn.execute(
-                        text(
-                            "SELECT tablename FROM pg_tables "
-                            "WHERE schemaname='public' AND tablename IN ('users','dogs','analyses')"
-                        )
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            assert rows == []
+        tables = await _tables(conn)
+        # alembic_version may remain; business tables must be gone
+        assert not {"users", "dogs", "analyses"}.intersection(tables)

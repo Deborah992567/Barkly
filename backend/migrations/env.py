@@ -36,7 +36,7 @@ def _database_url() -> str:
 
 
 def _render_item(type_, obj, autogen_context):
-    """Render UUID/JSON columns portably across PostgreSQL and SQLite."""
+    """Render UUID/JSON columns portably across MariaDB/MySQL and SQLite."""
     return False
 
 

@@ -28,3 +28,22 @@ __pycache__/
 .mypy_cache/
 backend/.env
 backend/media_storage/
+
+# ML / datasets (large files not committed)
+ml/data/raw/
+ml/data/interim/
+ml/data/processed/
+ml/data/external/
+ml/experiments/
+ml/models/artifacts/
+ml/models/checkpoints/
+*.wav
+*.mp3
+*.ogg
+*.flac
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.h5
+*.hdf5

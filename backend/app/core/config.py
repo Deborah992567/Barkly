@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # --- Database ---
-    database_url: str = "postgresql+asyncpg://barkly@127.0.0.1:5432/barkly_dev"
+    database_url: str = "mysql+aiomysql://barkly:barkly@127.0.0.1:3306/barkly_dev"
 
     # --- Authentication / security ---
     jwt_secret: str = ""
@@ -69,10 +69,8 @@ class Settings(BaseSettings):
                 "BARKLY_JWT_SECRET must be set to a value of at least 32 characters "
                 "when ENVIRONMENT=production. Current value is empty or too short."
             )
-        if self.environment == "prod" and "async+asyncpg" not in self.database_url:
-            raise ValueError(
-                "Production configuration requires an explicit PostgreSQL DATABASE_URL."
-            )
+        if self.environment == "prod" and "mysql+aiomysql" not in self.database_url:
+            raise ValueError("Production configuration requires an explicit MariaDB DATABASE_URL.")
         return self
 
     @property
