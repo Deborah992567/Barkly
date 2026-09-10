@@ -65,6 +65,8 @@ struct WelcomeView: View {
                 Haptics.medium()
                 cheer()
             }
+            .accessibilityIdentifier("welcome_get_started")
+            .accessibilityHint("Starts your onboarding with BARKLY")
             Button {
                 Haptics.medium()
                 app.completeOnboarding()
