@@ -165,13 +165,12 @@ def compute_calibration_error(
     if np.issubdtype(y_true.dtype, np.integer) or y_true.max() > 1:
         y_true = (y_true == y_true.max()).astype(int)
 
+    bin_indices = np.minimum((y_prob * n_bins).astype(int), n_bins - 1)
+
     ece = 0.0
     n = len(y_true)
     for i in range(n_bins):
-        lo, hi = bins[i], bins[i + 1]
-        mask = (y_prob >= lo) & (y_prob <= hi)
-        if i == n_bins - 1:
-            mask = (y_prob >= lo) & (y_prob <= hi + 1e-12)
+        mask = bin_indices == i
         n_bin = mask.sum()
         if n_bin == 0:
             continue
@@ -198,11 +197,9 @@ def reliability_diagram_data(
 
     data: list[dict[str, float]] = []
     bins = np.linspace(0.0, 1.0, n_bins + 1)
+    bin_indices = np.minimum((y_prob * n_bins).astype(int), n_bins - 1)
     for i in range(n_bins):
-        lo, hi = bins[i], bins[i + 1]
-        if i == n_bins - 1:
-            hi += 1e-12
-        mask = (y_prob >= lo) & (y_prob <= hi)
+        mask = bin_indices == i
         n_bin = int(mask.sum())
         if n_bin == 0:
             continue
@@ -212,8 +209,8 @@ def reliability_diagram_data(
                 "count": n_bin,
                 "avg_confidence": float(y_prob[mask].mean()),
                 "avg_accuracy": float(y_true[mask].mean()),
-                "bin_low": lo,
-                "bin_high": hi,
+                "bin_low": bins[i],
+                "bin_high": bins[i + 1],
             }
         )
     return data

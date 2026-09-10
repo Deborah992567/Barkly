@@ -80,7 +80,7 @@ def sample_manifest(tmp_path: Path) -> DatasetManifest:
     for label in labels:
         for split in splits:
             for j in range(2):
-                p = tmp_path / "data" / f"{label}_{j:03d}.wav"
+                p = tmp_path / "data" / f"{label}_{split}_{j:03d}.wav"
                 p.parent.mkdir(parents=True, exist_ok=True)
                 sr = 16000
                 with wave.open(str(p), "w") as wf:

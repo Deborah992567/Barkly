@@ -10,11 +10,11 @@ import numpy as np
 import pytest
 
 from src.data.manifest import DatasetManifest, SampleManifest
-from scripts.prepare_dataset import (
+from src.data.leakage import (
     detect_cross_split_leakage,
-    detect_duplicates,
-    split_dataset,
+    detect_exact_duplicates,
 )
+from src.data.splitter import SplitManifest, split_dataset
 
 
 def _make_wav(path: Path, sr: int = 16000, data: np.ndarray | None = None) -> str:
@@ -40,9 +40,9 @@ class TestExactDuplicateDetection:
             SampleManifest("s2", "test", "d2", "audio", str(tmp_path / "b.wav"), "bark", "bark", 1.0, "test", file_hash=h2),
         ]
         manifest = DatasetManifest(version="1.0.0", samples=samples)
-        dupes = detect_duplicates(manifest)
+        dupes = detect_exact_duplicates(manifest)
         assert len(dupes) == 1
-        assert len(list(dupes.values())[0]) == 2
+        assert sorted(dupes[0]) == ["s1", "s2"]
 
     def test_no_duplicates_unique_files(self, tmp_path: Path):
         samples = []
@@ -53,7 +53,7 @@ class TestExactDuplicateDetection:
                 f"s{i}", "test", "d0", "audio", str(p), "bark", "bark", 1.0, "train", file_hash=h,
             ))
         manifest = DatasetManifest(version="1.0.0", samples=samples)
-        dupes = detect_duplicates(manifest)
+        dupes = detect_exact_duplicates(manifest)
         assert len(dupes) == 0
 
 
@@ -62,14 +62,16 @@ class TestCrossSplitLeakage:
         data = np.random.randn(16000).astype(np.float32) * 0.5
         h = _make_wav(tmp_path / "shared.wav", data=data)
 
-        samples = [
-            SampleManifest("s1", "test", "d1", "audio", str(tmp_path / "shared.wav"), "bark", "bark", 1.0, "train", file_hash=h),
-            SampleManifest("s2", "test", "d2", "audio", str(tmp_path / "shared.wav"), "bark", "bark", 1.0, "test", file_hash=h),
-        ]
-        manifest = DatasetManifest(version="1.0.0", samples=samples)
-        leaks = detect_cross_split_leakage(manifest)
-        assert len(leaks) == 1
-        assert ("train", "test") == tuple(sorted([leaks[0][2], leaks[0][3]]))
+        s1 = SampleManifest("s1", "test", "d1", "audio", str(tmp_path / "shared.wav"), "bark", "bark", 1.0, "train", file_hash=h)
+        s2 = SampleManifest("s2", "test", "d2", "audio", str(tmp_path / "shared.wav"), "bark", "bark", 1.0, "test", file_hash=h)
+        split_manifest = SplitManifest(
+            train=DatasetManifest(version="1.0.0", samples=[s1]),
+            val=DatasetManifest(version="1.0.0", samples=[]),
+            test=DatasetManifest(version="1.0.0", samples=[s2]),
+        )
+        report = detect_cross_split_leakage(split_manifest)
+        assert report.has_issues
+        assert "train_test_hash_overlap" in report.cross_split_issues
 
     def test_no_leakage_when_all_train(self, tmp_path: Path):
         samples = []
@@ -79,9 +81,13 @@ class TestCrossSplitLeakage:
             samples.append(SampleManifest(
                 f"s{i}", "test", "d0", "audio", str(p), "bark", "bark", 1.0, "train", file_hash=h,
             ))
-        manifest = DatasetManifest(version="1.0.0", samples=samples)
-        leaks = detect_cross_split_leakage(manifest)
-        assert len(leaks) == 0
+        split_manifest = SplitManifest(
+            train=DatasetManifest(version="1.0.0", samples=samples),
+            val=DatasetManifest(version="1.0.0", samples=[]),
+            test=DatasetManifest(version="1.0.0", samples=[]),
+        )
+        report = detect_cross_split_leakage(split_manifest)
+        assert report.has_issues is False
 
 
 class TestDogLevelSplitNoLeakage:
@@ -94,11 +100,29 @@ class TestDogLevelSplitNoLeakage:
                 f"s{i}", "test", "dog_A", "audio", str(p), "bark", "bark", 1.0, "unassigned", file_hash=h,
             ))
         manifest = DatasetManifest(version="1.0.0", samples=samples)
-        split_manifest = split_dataset(manifest, seed=42, stratify_by="dog_id")
+        split_manifest = split_dataset(manifest, seed=42, strategy="dog_level")
 
         dog_splits = {}
-        for s in split_manifest.samples:
-            dog_splits.setdefault(s.dog_id, set()).add(s.split)
+        for split_name, split_manifest_item in [
+            ("train", split_manifest.train),
+            ("val", split_manifest.val),
+            ("test", split_manifest.test),
+        ]:
+            for s in split_manifest_item.samples:
+                dog_splits.setdefault(s.dog_id, set()).add(split_name)
 
         for dog_id, splits in dog_splits.items():
             assert len(splits) == 1, f"Dog {dog_id} appears in multiple splits: {splits}"
+        assert split_manifest.leakage_checks["has_leakage"] is False
+
+    def test_multiple_dogs_each_in_single_split(self, tmp_path: Path):
+        samples = []
+        for i in range(20):
+            p = tmp_path / f"f{i}.wav"
+            h = _make_wav(p)
+            samples.append(SampleManifest(
+                f"s{i}", "test", f"dog_{i % 5}", "audio", str(p), "bark", "bark", 1.0, "unassigned", file_hash=h,
+            ))
+        manifest = DatasetManifest(version="1.0.0", samples=samples)
+        split_manifest = split_dataset(manifest, seed=42, strategy="dog_level")
+        assert split_manifest.leakage_checks["has_leakage"] is False

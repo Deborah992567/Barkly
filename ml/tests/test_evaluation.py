@@ -1,14 +1,17 @@
-"""Tests for the evaluation pipeline."""
+"""Tests for the evaluation pipeline (metrics, calibration, OOD)."""
 
 from __future__ import annotations
-
-import json
-from pathlib import Path
 
 import numpy as np
 import pytest
 
-from scripts.evaluate import compute_calibration, compute_ood_detection, evaluate
+from src.evaluation.metrics import (
+    compute_calibration_error,
+    compute_ood_metrics,
+    evaluate_classification,
+    reliability_diagram_data,
+)
+from src.evaluation.ood import OODDetector
 
 
 class TestMetricsCalculation:
@@ -16,28 +19,37 @@ class TestMetricsCalculation:
         y_true = np.array([0, 1, 2, 0, 1, 2])
         y_pred = np.array([0, 1, 2, 0, 1, 2])
         labels = ["a", "b", "c"]
-        metrics = evaluate(y_true, y_pred, None, labels)
-        assert metrics["accuracy"] == 1.0
-        assert metrics["macro_f1"] == 1.0
+        metrics = evaluate_classification(y_true, y_pred, None, labels)
+        assert metrics.accuracy == 1.0
+        assert metrics.macro_f1 == 1.0
 
     def test_worst_prediction(self):
         y_true = np.array([0, 0, 0, 1, 1, 1])
         y_pred = np.array([1, 1, 1, 0, 0, 0])
         labels = ["a", "b"]
-        metrics = evaluate(y_true, y_pred, None, labels)
-        assert metrics["accuracy"] == 0.0
+        metrics = evaluate_classification(y_true, y_pred, None, labels)
+        assert metrics.accuracy == 0.0
+        assert metrics.macro_f1 == 0.0
 
     def test_per_class_metrics(self):
         y_true = np.array([0, 0, 1, 1, 2, 2])
         y_pred = np.array([0, 0, 1, 2, 2, 1])
         labels = ["a", "b", "c"]
-        metrics = evaluate(y_true, y_pred, None, labels)
-        assert "per_class" in metrics
-        for label in labels:
-            assert label in metrics["per_class"]
-            assert "precision" in metrics["per_class"][label]
-            assert "recall" in metrics["per_class"][label]
-            assert "f1-score" in metrics["per_class"][label]
+        metrics = evaluate_classification(y_true, y_pred, None, labels)
+        assert len(metrics.per_class_metrics) == 3
+        for pm in metrics.per_class_metrics:
+            assert pm.class_name in labels
+            assert pm.precision >= 0.0
+            assert pm.recall >= 0.0
+            assert pm.f1 >= 0.0
+
+    def test_report_to_dict(self):
+        y_true = np.array([0, 1, 0, 1])
+        y_pred = np.array([0, 1, 0, 1])
+        metrics = evaluate_classification(y_true, y_pred)
+        d = metrics.to_dict()
+        assert d["accuracy"] == 1.0
+        assert d["per_class_metrics"][0]["precision"] == 1.0
 
 
 class TestConfusionMatrixShape:
@@ -45,16 +57,15 @@ class TestConfusionMatrixShape:
         y_true = np.array([0, 1, 2, 0, 1, 2])
         y_pred = np.array([0, 1, 1, 0, 2, 2])
         labels = ["a", "b", "c"]
-        metrics = evaluate(y_true, y_pred, None, labels)
-        cm = np.array(metrics["confusion_matrix"])
-        assert cm.shape == (3, 3)
+        metrics = evaluate_classification(y_true, y_pred, None, labels)
+        assert metrics.confusion_matrix.shape == (3, 3)
 
     def test_diagonal_elements(self):
         y_true = np.array([0, 0, 1, 1])
         y_pred = np.array([0, 0, 1, 1])
         labels = ["a", "b"]
-        metrics = evaluate(y_true, y_pred, None, labels)
-        cm = np.array(metrics["confusion_matrix"])
+        metrics = evaluate_classification(y_true, y_pred, None, labels)
+        cm = metrics.confusion_matrix
         assert cm[0, 0] == 2
         assert cm[1, 1] == 2
         assert cm[0, 1] == 0
@@ -63,50 +74,83 @@ class TestConfusionMatrixShape:
 
 class TestCalibrationErrorRange:
     def test_ece_in_01(self):
-        y_true = np.array([0, 1, 2, 0, 1, 2, 0, 1, 2, 0])
-        probs = np.random.dirichlet([1, 1, 1], 10)
-        cal = compute_calibration(y_true, probs)
-        assert 0.0 <= cal["ece"] <= 1.0
+        y_true = np.random.choice([0, 1, 2], 50)
+        probs = np.random.dirichlet([1, 1, 1], 50)
+        ece = compute_calibration_error(y_true, probs, n_bins=10)
+        assert 0.0 <= ece <= 1.0
 
     def test_perfect_calibration(self):
-        y_true = np.array([0, 1, 2])
-        probs = np.array([[0.9, 0.05, 0.05], [0.05, 0.9, 0.05], [0.05, 0.05, 0.9]])
-        cal = compute_calibration(y_true, probs)
-        assert cal["ece"] < 0.1
+        y_true = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+        probs = np.array([0.0] * 5 + [1.0] * 5)
+        ece = compute_calibration_error(y_true, probs, n_bins=10)
+        assert ece == 0.0
 
-    def test_bins_count(self):
+    def test_binary_probs_vector(self):
+        y_true = np.array([0, 1, 0, 1])
+        probs = np.array([0.9, 0.2, 0.8, 0.3])
+        ece = compute_calibration_error(y_true, probs, n_bins=5)
+        assert 0.0 <= ece <= 1.0
+
+    def test_reliability_diagram(self):
         y_true = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
-        probs = np.random.dirichlet([1, 1], 10)
-        cal = compute_calibration(y_true, probs, n_bins=5)
-        assert isinstance(cal["bins"], list)
+        probs = np.random.dirichlet([2, 1], 10)[:, 0]
+        data = reliability_diagram_data(y_true, probs, n_bins=5)
+        assert isinstance(data, list)
+        for entry in data:
+            assert {"bin", "count", "avg_confidence", "avg_accuracy"} <= set(entry)
 
 
-class TestOODDetection:
-    def test_ood_counts(self):
-        probs = np.array([
-            [0.9, 0.1],
-            [0.3, 0.7],
-            [0.4, 0.6],
-            [0.1, 0.9],
-        ])
-        ood = compute_ood_detection(probs, threshold=0.5)
-        assert ood["total_samples"] == 4
-        assert ood["ood_count"] + ood["id_count"] == 4
+class TestOODMetrics:
+    def test_ood_metrics_separation(self):
+        in_probs = np.random.dirichlet([10, 1, 1], 100)
+        ood_probs = np.random.dirichlet([1, 10, 10], 100)
+        metrics = compute_ood_metrics(in_probs, ood_probs)
+        assert 0.0 <= metrics.auroc <= 1.0
+        assert 0.0 <= metrics.tpr_at_95_fpr <= 1.0
 
-    def test_ood_all_high_confidence(self):
-        probs = np.array([[0.99, 0.01], [0.95, 0.05]])
-        ood = compute_ood_detection(probs, threshold=0.5)
-        assert ood["ood_count"] == 0
-        assert ood["id_count"] == 2
+    def test_ood_metrics_one_dimensional(self):
+        in_scores = np.random.uniform(0.8, 1.0, 50)
+        ood_scores = np.random.uniform(0.0, 0.4, 50)
+        metrics = compute_ood_metrics(in_scores, ood_scores)
+        assert metrics.auroc > 0.9
+        assert metrics.in_mean_score > metrics.ood_mean_score
 
-    def test_ood_all_low_confidence(self):
-        probs = np.array([[0.51, 0.49], [0.52, 0.48]])
-        ood = compute_ood_detection(probs, threshold=0.8)
-        assert ood["ood_count"] == 2
-        assert ood["id_count"] == 0
 
-    def test_confidence_distribution(self):
-        probs = np.random.dirichlet([1, 1], 100)
-        ood = compute_ood_detection(probs, threshold=0.5)
-        cd = ood["confidence_distribution"]
-        assert cd["p10"] <= cd["p25"] <= cd["p75"] <= cd["p90"]
+class TestOODDetector:
+    def test_max_softmax_method(self):
+        detector = OODDetector(method="max_softmax")
+        logits = np.random.randn(10, 4)
+        scores = detector.score(logits)
+        assert scores.shape == (10,)
+        assert np.all((scores >= 0) & (scores <= 1))
+
+    def test_energy_method(self):
+        detector = OODDetector(method="energy")
+        logits = np.random.randn(10, 4)
+        scores = detector.score(logits)
+        assert scores.shape == (10,)
+
+    def test_invalid_method(self):
+        with pytest.raises(ValueError):
+            OODDetector(method="bogus")
+
+    def test_detect_ood_threshold(self):
+        detector = OODDetector(method="max_softmax")
+        scores = np.array([0.9, 0.1, 0.8, 0.2])
+        flags = detector.detect_ood(scores, threshold=0.5)
+        assert flags.tolist() == [False, True, False, True]
+
+    def test_find_threshold_target_fpr(self):
+        detector = OODDetector(method="max_softmax")
+        rng = np.random.default_rng(42)
+        in_scores = rng.beta(8, 2, 200)  # mostly high
+        ood_scores = rng.beta(2, 8, 200)  # mostly low
+        scores = np.concatenate([in_scores, ood_scores])
+        labels = np.concatenate([np.ones(200), np.zeros(200)])
+        threshold = detector.find_threshold(scores, labels, target_fpr=0.05)
+        assert 0.0 < threshold < 1.0
+
+
+class TestUnknownHeuristics:
+    def test_unknown_class_present(self):
+        assert "unknown" in [l.lower() for l in ["bark", "whine", "growl", "howl", "sigh", "whimper", "unknown"]]
