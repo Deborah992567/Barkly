@@ -1,0 +1,10 @@
+model: mobilenet_v3
+image_size: 224
+batch_size: 32
+lr: 0.001
+epochs: 30
+seed: 42
+pretrained: true
+num_classes: null
+freeze_backbone: false
+fine_tune_layers: 5

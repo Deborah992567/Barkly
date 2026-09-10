@@ -1,0 +1,13 @@
+model: random_forest
+features:
+  - mfcc
+  - mel_spectrogram
+  - spectral
+sample_rate: 22050
+duration: 3.0
+n_mfcc: 13
+n_mels: 128
+seed: 42
+class_weight: balanced
+n_estimators: 100
+max_depth: null
