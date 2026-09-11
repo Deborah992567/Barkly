@@ -82,16 +82,17 @@ class VisionCNN(nn.Module):
 def get_model(num_classes: int, config: dict) -> nn.Module:
     model_type = config.get("model", "mobilenet_v3")
 
-    if model_type == "mobilenet_v3":
-        from torchvision.models import mobilenet_v3_small, MobileNet_V3_Small_Weights
-        weights = MobileNet_V3_Small_Weights.DEFAULT if config.get("pretrained", True) else None
-        model = mobilenet_v3_small(weights=weights)
-        in_features = model.classifier[3].in_features
-        model.classifier[3] = nn.Linear(in_features, num_classes)
-        if config.get("freeze_backbone", False):
-            for param in list(model.features.parameters())[:-config.get("fine_tune_layers", 5)]:
-                param.requires_grad = False
-        return model
+    if model_type == "mobilenet_v3" or model_type == "efficientnet":
+        from src.models.vision_baseline import VisionBaselineConfig, VisionBaselineModel
+
+        wrapper = VisionBaselineModel(VisionBaselineConfig(
+            model_name=model_type,
+            num_classes=num_classes,
+            pretrained=config.get("pretrained", True),
+            freeze_backbone=config.get("freeze_backbone", False),
+            fine_tune_layers=config.get("fine_tune_layers", 0),
+        ))
+        return wrapper
     else:
         return VisionCNN(num_classes, config)
 
@@ -105,8 +106,16 @@ def train(config: dict, train_samples, val_samples, output_dir: Path) -> dict:
     labels = train_ds.labels
     num_classes = len(labels)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = get_model(num_classes, config).to(device)
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+    wrapper = get_model(num_classes, config)
+    model = wrapper.model if hasattr(wrapper, "model") else wrapper
+    model.to(device)
+    print(f"Device: {device} | Params: {sum(p.numel() for p in model.parameters()):,}")
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=config.get("lr", 0.001))
@@ -146,7 +155,13 @@ def train(config: dict, train_samples, val_samples, output_dir: Path) -> dict:
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             wait = 0
-            torch.save(model.state_dict(), output_dir / "model.pt")
+            torch.save(
+                {
+                    "model_state_dict": model.state_dict(),
+                    "labels": labels,
+                },
+                output_dir / "model.pt",
+            )
         else:
             wait += 1
             if wait >= patience:

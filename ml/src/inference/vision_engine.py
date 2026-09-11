@@ -25,13 +25,21 @@ class VisionInferenceEngine:
         self.model_path = str(model_path)
         self.config = self._load_config(config_path)
         self.confidence_threshold = confidence_threshold
-        self.device = torch.device(
-            device
-            or ("cuda" if torch.cuda.is_available() else "cpu")
-        )
 
-        self.class_names: list[str] = []
-        if label_encoder_path and Path(label_encoder_path).exists():
+        if device:
+            self.device = torch.device(device)
+        elif torch.cuda.is_available():
+            self.device = torch.device("cuda")
+        elif getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
+            self.device = torch.device("mps")
+        else:
+            self.device = torch.device("cpu")
+
+        checkpoint = torch.load(
+            self.model_path, map_location="cpu", weights_only=False
+        )
+        self.class_names: list[str] = list(checkpoint.get("labels", []))
+        if not self.class_names and label_encoder_path and Path(label_encoder_path).exists():
             import pickle
 
             with open(label_encoder_path, "rb") as f:
@@ -50,9 +58,6 @@ class VisionInferenceEngine:
             device=str(self.device),
         )
         self.wrapper = VisionBaselineModel(cfg)
-        checkpoint = torch.load(
-            self.model_path, map_location="cpu", weights_only=False
-        )
         state_dict = checkpoint.get("model_state_dict", checkpoint)
         self.wrapper.model.load_state_dict(state_dict)
         self.wrapper.model.to(self.device)

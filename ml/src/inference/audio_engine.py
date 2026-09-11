@@ -47,14 +47,18 @@ class AudioInferenceEngine:
         self.ood_threshold = ood_threshold
 
         self.label_encoder_path = label_encoder_path
-        self.class_names, self.label_encoder = self._load_label_encoder()
 
-        self.device = torch.device(
-            device
-            or ("cuda" if torch.cuda.is_available() else "cpu")
-        )
+        if device:
+            self.device = torch.device(device)
+        elif torch.cuda.is_available():
+            self.device = torch.device("cuda")
+        elif getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
+            self.device = torch.device("mps")
+        else:
+            self.device = torch.device("cpu")
 
         self.model_type = self.config.get("model", "audio_cnn")
+        self.class_names, self.checkpoint = self._load_checkpoint()
         self.model = self._load_model()
         self.model.to(self.device)
         self.model.eval()
@@ -75,17 +79,23 @@ class AudioInferenceEngine:
 
         self.ood_detector = OODDetector(method="energy")
 
-    def _load_label_encoder(self) -> tuple[list[str], object | None]:
+    def _load_checkpoint(self) -> tuple[list[str], dict]:
+        checkpoint = torch.load(
+            self.model_path, map_location="cpu", weights_only=False
+        )
+        labels = checkpoint.get("labels", [])
+        if labels:
+            return list(labels), checkpoint
         if self.label_encoder_path and Path(self.label_encoder_path).exists():
             import pickle
 
             with open(self.label_encoder_path, "rb") as f:
                 encoder = pickle.load(f)
             if hasattr(encoder, "classes_"):
-                return list(encoder.classes_), encoder
+                return list(encoder.classes_), checkpoint
             if isinstance(encoder, (list, tuple)):
-                return list(encoder), None
-        return [], None
+                return list(encoder), checkpoint
+        return [], checkpoint
 
     def _load_model(self) -> torch.nn.Module:
         from ..models.audio_cnn import AudioCNN, AudioCNNConfig
@@ -93,11 +103,13 @@ class AudioInferenceEngine:
         cfg = AudioCNNConfig(
             n_mels=self.config.get("n_mels", 128),
             n_mfcc=self.config.get("n_mfcc", 13),
+            conv_channels=self.config.get("conv_channels", [32, 64, 128]),
+            fc_dims=self.config.get("fc_dims", [256, 128]),
+            dropout=self.config.get("dropout", 0.3),
             num_classes=max(len(self.class_names), 2),
         )
         model = AudioCNN(cfg)
-        checkpoint = torch.load(self.model_path, map_location="cpu", weights_only=False)
-        state_dict = checkpoint.get("model_state_dict", checkpoint)
+        state_dict = self.checkpoint.get("model_state_dict", self.checkpoint)
         model.load_state_dict(state_dict)
         return model
 

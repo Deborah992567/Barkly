@@ -69,6 +69,11 @@ def prepare_barkopedia(raw_dir: Path, out_dir: Path, seed: int = 42) -> dict:
     split.train.save_yaml(out_dir / "train.yaml")
     split.val.save_yaml(out_dir / "val.yaml")
     split.test.save_yaml(out_dir / "test.yaml")
+    DatasetManifest(
+        version="1.0.0",
+        samples=split.train.samples + split.val.samples + split.test.samples,
+        metadata=manifest.metadata,
+    ).save_yaml(out_dir / "manifest.yaml")
 
     return {
         "dataset_id": "barkopedia-activity-env",
@@ -135,6 +140,11 @@ def prepare_dogposecv(raw_dir: Path, out_dir: Path, seed: int = 42) -> dict:
     split.train.save_yaml(out_dir / "train.yaml")
     split.val.save_yaml(out_dir / "val.yaml")
     split.test.save_yaml(out_dir / "test.yaml")
+    DatasetManifest(
+        version="1.0.0",
+        samples=split.train.samples + split.val.samples + split.test.samples,
+        metadata=manifest.metadata,
+    ).save_yaml(out_dir / "manifest.yaml")
 
     return {
         "dataset_id": "dogpose-cv",
