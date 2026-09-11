@@ -86,6 +86,28 @@ Rejected datasets (with documented reasons) include DogSpeak
 samples), DEBIw (unclear licensing), CREMD (too small), and DECADE (wrong
 perspective).
 
+### Dataset preparation & training status
+
+Reproducible pipeline lives in
+[`ml/scripts/prepare_real_datasets.py`](ml/scripts/prepare_real_datasets.py);
+the report is committed in
+[`ml/data/manifests/pipeline_report.json`](ml/data/manifests/pipeline_report.json).
+
+- **Barkopedia audio** — 12,480 clips → 2 exact-duplicate groups removed →
+  12,478 clips, 8 activity classes, random split (train/val/test =
+  8,734/1,871/1,873), zero cross-split leakage.
+- **DogPoseCV vision** — 20,730 images → 168 unlabeled removed + 226 exact
+  duplicates removed → 20,197 images, 4 pose classes (standing / sitting /
+  lying / undefined), random split (14,137/3,029/3,031), zero leakage.
+
+Baseline results so far: the audio Random Forest baseline (flat MFCC +
+spectral features) reaches **0.240** balanced accuracy on validation — the
+hand-crafted-feature ceiling the learned CNN is expected to beat. Model
+training, test-set evaluation (per-class metrics, calibration/ECE, OOD and
+UNKNOWN analysis) is ongoing; artifacts are emitted under
+[`ml/experiments/`](ml/experiments/) and versioned via
+[`ml/scripts/export_model.py`](ml/scripts/export_model.py).
+
 ### What BARKLY CAN and CANNOT claim
 
 - **CAN**: classify observable signals (vocalization patterns, activity,

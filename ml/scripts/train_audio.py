@@ -7,6 +7,7 @@ prepared manifest, extracts features, trains, evaluates, and saves artifacts.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -61,12 +62,13 @@ def _extract_flat_features(waveform: np.ndarray, config: dict) -> np.ndarray:
 
 
 class AudioManifestDataset(Dataset):
-    def __init__(self, samples: list[SampleManifest], config: dict):
+    def __init__(self, samples: list[SampleManifest], config: dict, cache_dir: Path | None = None):
         self.samples = samples
         self.config = config
         self.sample_rate = config.get("sample_rate", 22050)
         self.duration = config.get("duration", 3.0)
         self.n_mels = config.get("n_mels", 128)
+        self.cache_dir = cache_dir
 
         self.labels = sorted({s.normalized_label for s in samples})
         self.label_to_idx = {l: i for i, l in enumerate(self.labels)}
@@ -74,21 +76,39 @@ class AudioManifestDataset(Dataset):
     def __len__(self) -> int:
         return len(self.samples)
 
+    def _cache_path(self, sample: SampleManifest) -> Path | None:
+        if self.cache_dir is None:
+            return None
+        key = (
+            f"{sample.sample_id}_{self.sample_rate}_{self.duration}_{self.n_mels}"
+        )
+        return self.cache_dir / f"{hashlib.md5(key.encode()).hexdigest()}.npy"
+
     def __getitem__(self, idx: int):
         sample = self.samples[idx]
-        waveform = _preprocess(sample.path, self.config)
-        extractor = AudioFeatureExtractor(
-            FeatureConfig(
-                sample_rate=self.sample_rate,
-                n_mels=self.n_mels,
-                use_mfcc=False,
-                use_mel_spectrogram=True,
-                use_spectral=False,
+
+        cache_path = self._cache_path(sample)
+        if cache_path is not None and cache_path.exists():
+            mel = np.load(cache_path).astype(np.float32)
+        else:
+            waveform = _preprocess(sample.path, self.config)
+            extractor = AudioFeatureExtractor(
+                FeatureConfig(
+                    sample_rate=self.sample_rate,
+                    n_mels=self.n_mels,
+                    use_mfcc=False,
+                    use_mel_spectrogram=True,
+                    use_spectral=False,
+                )
             )
-        )
-        mel = extractor.extract_mel_spectrogram(waveform, self.sample_rate, self.n_mels)
-        mel = (mel - np.mean(mel)) / (np.std(mel) + 1e-8)
-        feature = torch.from_numpy(mel.astype(np.float32)).unsqueeze(0)  # (1, n_mels, T)
+            mel = extractor.extract_mel_spectrogram(waveform, self.sample_rate, self.n_mels)
+            mel = (mel - np.mean(mel)) / (np.std(mel) + 1e-8)
+            mel = mel.astype(np.float32)
+            if cache_path is not None:
+                self.cache_dir.mkdir(parents=True, exist_ok=True)
+                np.save(cache_path, mel)
+
+        feature = torch.from_numpy(mel).unsqueeze(0)  # (1, n_mels, T)
         label_idx = self.label_to_idx[sample.normalized_label]
         return feature, label_idx
 
@@ -145,8 +165,10 @@ def train_baseline(config: dict, train_samples, val_samples, output_dir: Path) -
 def train_cnn(config: dict, train_samples, val_samples, output_dir: Path) -> dict:
     labels = sorted({s.normalized_label for s in train_samples})
 
-    train_ds = AudioManifestDataset(train_samples, config)
-    val_ds = AudioManifestDataset(val_samples, config)
+    cache_dir = output_dir / "feature_cache"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    train_ds = AudioManifestDataset(train_samples, config, cache_dir=cache_dir)
+    val_ds = AudioManifestDataset(val_samples, config, cache_dir=cache_dir)
     train_loader = DataLoader(train_ds, batch_size=config.get("batch_size", 32), shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=config.get("batch_size", 32))
 
