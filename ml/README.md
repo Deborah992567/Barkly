@@ -47,9 +47,14 @@ python scripts/inspect_dataset.py data/raw/barkopedia-activity data/manifests/in
 
 ### Prepare a Dataset
 
+The real-data pipeline ingests Barkopedia (audio) and DogPoseCV (vision),
+dedupes exact duplicates, runs leakage-safe splits, and writes processed
+manifests plus a report:
+
 ```sh
-python scripts/prepare_dataset.py data/raw/barkopedia-activity data/processed/barkopedia-activity \
-  --modality audio --train-ratio 0.8 --val-ratio 0.1 --test-ratio 0.1 --seed 42
+python scripts/prepare_real_datasets.py \
+  --raw data/raw --processed data/processed \
+  --report data/manifests/pipeline_report.json
 ```
 
 ### Train Audio Model
@@ -76,11 +81,20 @@ python scripts/train_vision.py configs/vision_baseline.yaml \
 
 ### Evaluate
 
+End-to-end evaluation runs the test split through the **production inference
+engine** and reports per-class metrics, confusion matrix, calibration (ECE),
+and OOD/UNKNOWN analysis:
+
 ```sh
-python scripts/evaluate.py data/processed/barkopedia-activity/manifest.yaml \
-  --model-dir experiments/audio_baseline \
-  --split test \
-  --output experiments/audio_baseline/evaluation.json
+python scripts/evaluate_model.py audio \
+  data/processed/barkopedia-activity-env/manifest.yaml \
+  --model-dir experiments/audio_cnn --config configs/audio_cnn.yaml \
+  --output experiments/audio_cnn/evaluation.json
+
+python scripts/evaluate_model.py vision \
+  data/processed/dogpose-cv/manifest.yaml \
+  --model-dir experiments/vision_baseline --config configs/vision_baseline.yaml \
+  --output experiments/vision_baseline/evaluation.json
 ```
 
 ### Export Model
