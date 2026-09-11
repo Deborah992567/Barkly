@@ -1,0 +1,57 @@
+{
+  "barkopedia-activity-env": {
+    "dataset_id": "barkopedia-activity-env",
+    "modality": "audio",
+    "license": "MIT",
+    "raw_samples": 12480,
+    "duplicate_groups": 2,
+    "duplicate_sample_ids_removed": [
+      "audio_06189",
+      "audio_08541"
+    ],
+    "total_after_dedup": 12478,
+    "split_sizes": {
+      "train": 8734,
+      "val": 1871,
+      "test": 1873
+    },
+    "class_distribution": {
+      "playing_with_human": 1797,
+      "playing_with_other_animals": 1774,
+      "rest": 1770,
+      "seeking_attention": 1818,
+      "alerting_to_sounds": 1754,
+      "begging_for_food": 541,
+      "playing_with_toy": 1779,
+      "taking_shower": 1245
+    },
+    "cross_split_leakage": {},
+    "seed": 42,
+    "split_strategy": "random"
+  },
+  "dogpose-cv": {
+    "dataset_id": "dogpose-cv",
+    "modality": "vision",
+    "license": "Apache-2.0",
+    "raw_labeled_samples": 20423,
+    "unlabeled_images_removed": 168,
+    "duplicate_groups": 226,
+    "duplicate_sample_ids_removed": 226,
+    "total_after_dedup": 20197,
+    "split_sizes": {
+      "train": 14137,
+      "val": 3029,
+      "test": 3031
+    },
+    "class_distribution": {
+      "standing": 6983,
+      "undefined": 6190,
+      "sitting": 2969,
+      "lying": 4055
+    },
+    "cross_split_leakage": {},
+    "seed": 42,
+    "split_strategy": "random",
+    "dog_identity_available": false
+  }
+}

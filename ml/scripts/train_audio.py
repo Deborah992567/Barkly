@@ -21,8 +21,43 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.data.manifest import DatasetManifest, SampleManifest
-from src.audio.preprocessor import preprocess_audio
-from src.audio.feature_extractor import extract_features
+from src.audio.preprocessing import AudioPreprocessor, preprocess_audio
+from src.audio.features import AudioFeatureExtractor, FeatureConfig
+from src.models.audio_cnn import AudioCNN, AudioCNNConfig
+
+
+def get_device() -> torch.device:
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
+def _preprocess(path: str, config: dict) -> np.ndarray:
+    return preprocess_audio(
+        path,
+        AudioPreprocessor(
+            target_sr=config.get("sample_rate", 22050),
+            target_duration=config.get("duration", 3.0),
+        ),
+    )
+
+
+def _extract_flat_features(waveform: np.ndarray, config: dict) -> np.ndarray:
+    sr = config.get("sample_rate", 22050)
+    extractor = AudioFeatureExtractor(
+        FeatureConfig(
+            sample_rate=sr,
+            n_mfcc=config.get("n_mfcc", 13),
+            n_mels=config.get("n_mels", 128),
+            use_mfcc=True,
+            use_mel_spectrogram=False,
+            use_spectral=True,
+        )
+    )
+    feats = extractor.extract_all(waveform, sr)
+    return extractor.flatten_features(feats)
 
 
 class AudioManifestDataset(Dataset):
@@ -41,59 +76,21 @@ class AudioManifestDataset(Dataset):
 
     def __getitem__(self, idx: int):
         sample = self.samples[idx]
-        waveform = preprocess_audio(
-            sample.path,
-            target_sr=self.sample_rate,
-            target_duration=self.duration,
+        waveform = _preprocess(sample.path, self.config)
+        extractor = AudioFeatureExtractor(
+            FeatureConfig(
+                sample_rate=self.sample_rate,
+                n_mels=self.n_mels,
+                use_mfcc=False,
+                use_mel_spectrogram=True,
+                use_spectral=False,
+            )
         )
-        features = extract_features(waveform, self.sample_rate, self.config)
+        mel = extractor.extract_mel_spectrogram(waveform, self.sample_rate, self.n_mels)
+        mel = (mel - np.mean(mel)) / (np.std(mel) + 1e-8)
+        feature = torch.from_numpy(mel.astype(np.float32)).unsqueeze(0)  # (1, n_mels, T)
         label_idx = self.label_to_idx[sample.normalized_label]
-        return torch.tensor(features, dtype=torch.float32), label_idx
-
-
-class AudioCNN(nn.Module):
-    def __init__(self, num_classes: int, config: dict):
-        super().__init__()
-        conv_channels = config.get("conv_channels", [32, 64, 128])
-        fc_dims = config.get("fc_dims", [256, 128])
-        dropout = config.get("dropout", 0.3)
-        n_mels = config.get("n_mels", 128)
-
-        layers = []
-        in_ch = 1
-        for out_ch in conv_channels:
-            layers.extend([
-                nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1),
-                nn.BatchNorm2d(out_ch),
-                nn.ReLU(),
-                nn.MaxPool2d(2),
-            ])
-            in_ch = out_ch
-        self.conv = nn.Sequential(*layers)
-
-        with torch.no_grad():
-            dummy = torch.zeros(1, 1, n_mels, n_mels)
-            conv_out = self.conv(dummy)
-            flat_size = conv_out.view(1, -1).shape[1]
-
-        fc_layers = []
-        in_dim = flat_size
-        for dim in fc_dims:
-            fc_layers.extend([
-                nn.Linear(in_dim, dim),
-                nn.ReLU(),
-                nn.Dropout(dropout),
-            ])
-            in_dim = dim
-        fc_layers.append(nn.Linear(in_dim, num_classes))
-        self.fc = nn.Sequential(*fc_layers)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if x.dim() == 3:
-            x = x.unsqueeze(1)
-        x = self.conv(x)
-        x = x.view(x.size(0), -1)
-        return self.fc(x)
+        return feature, label_idx
 
 
 def train_baseline(config: dict, train_samples, val_samples, output_dir: Path) -> dict:
@@ -102,16 +99,14 @@ def train_baseline(config: dict, train_samples, val_samples, output_dir: Path) -
 
     X_train, y_train = [], []
     for sample in train_samples:
-        waveform = preprocess_audio(sample.path, config.get("sample_rate", 22050), config.get("duration", 3.0))
-        feats = extract_features(waveform, config.get("sample_rate", 22050), config)
-        X_train.append(feats)
+        waveform = _preprocess(sample.path, config)
+        X_train.append(_extract_flat_features(waveform, config))
         y_train.append(sample.normalized_label)
 
     X_val, y_val = [], []
     for sample in val_samples:
-        waveform = preprocess_audio(sample.path, config.get("sample_rate", 22050), config.get("duration", 3.0))
-        feats = extract_features(waveform, config.get("sample_rate", 22050), config)
-        X_val.append(feats)
+        waveform = _preprocess(sample.path, config)
+        X_val.append(_extract_flat_features(waveform, config))
         y_val.append(sample.normalized_label)
 
     X_train = np.array(X_train)
@@ -149,16 +144,23 @@ def train_baseline(config: dict, train_samples, val_samples, output_dir: Path) -
 
 def train_cnn(config: dict, train_samples, val_samples, output_dir: Path) -> dict:
     labels = sorted({s.normalized_label for s in train_samples})
-    num_classes = len(labels)
-    label_to_idx = {l: i for i, l in enumerate(labels)}
 
     train_ds = AudioManifestDataset(train_samples, config)
     val_ds = AudioManifestDataset(val_samples, config)
     train_loader = DataLoader(train_ds, batch_size=config.get("batch_size", 32), shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=config.get("batch_size", 32))
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = AudioCNN(num_classes, config).to(device)
+    device = get_device()
+    cnn_config = AudioCNNConfig(
+        n_mels=config.get("n_mels", 128),
+        n_mfcc=config.get("n_mfcc", 13),
+        conv_channels=config.get("conv_channels", [32, 64, 128]),
+        fc_dims=config.get("fc_dims", [256, 128]),
+        dropout=config.get("dropout", 0.3),
+        num_classes=len(labels),
+    )
+    model = AudioCNN(cnn_config).to(device)
+    print(f"Device: {device} | Params: {sum(p.numel() for p in model.parameters()):,}")
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(
@@ -174,6 +176,8 @@ def train_cnn(config: dict, train_samples, val_samples, output_dir: Path) -> dic
     wait = 0
 
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    all_labels, all_preds = [], []
 
     for epoch in range(epochs):
         model.train()
@@ -193,7 +197,7 @@ def train_cnn(config: dict, train_samples, val_samples, output_dir: Path) -> dic
         val_loss = 0.0
         correct = 0
         total = 0
-        all_preds, all_labels = [], []
+        epoch_preds, epoch_labels = [], []
         with torch.no_grad():
             for features, targets in val_loader:
                 features, targets = features.to(device), targets.to(device)
@@ -203,17 +207,21 @@ def train_cnn(config: dict, train_samples, val_samples, output_dir: Path) -> dic
                 _, predicted = outputs.max(1)
                 correct += predicted.eq(targets).sum().item()
                 total += targets.size(0)
-                all_preds.extend(predicted.cpu().numpy())
-                all_labels.extend(targets.cpu().numpy())
+                epoch_preds.extend(predicted.cpu().numpy())
+                epoch_labels.extend(targets.cpu().numpy())
 
         val_loss /= len(val_ds)
         val_acc = correct / total if total else 0
         scheduler.step(val_loss)
 
+        print(f"Epoch {epoch + 1}/{epochs} | train_loss={train_loss:.4f} | val_loss={val_loss:.4f} | val_acc={val_acc:.4f}")
+
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             wait = 0
-            torch.save(model.state_dict(), output_dir / "model.pt")
+            all_preds, all_labels = epoch_preds, epoch_labels
+            torch.save({"model_state_dict": model.state_dict(), "labels": labels},
+                       output_dir / "model.pt")
         else:
             wait += 1
             if wait >= patience:
@@ -221,9 +229,10 @@ def train_cnn(config: dict, train_samples, val_samples, output_dir: Path) -> dic
 
     from sklearn.metrics import classification_report, confusion_matrix as sklearn_cm
 
-    label_names = [labels[i] for i in range(num_classes)]
-    report = classification_report(all_labels, all_preds, labels=list(range(num_classes)), target_names=label_names, output_dict=True, zero_division=0)
-    cm = sklearn_cm(all_labels, all_preds, labels=list(range(num_classes)))
+    label_names = labels
+    report = classification_report(all_labels, all_preds, labels=list(range(len(labels))),
+                                   target_names=label_names, output_dict=True, zero_division=0)
+    cm = sklearn_cm(all_labels, all_preds, labels=list(range(len(labels))))
 
     np.save(output_dir / "confusion_matrix.npy", cm)
     metrics = {
