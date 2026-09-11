@@ -1,0 +1,16 @@
+model: audio_cnn
+n_mels: 128
+sample_rate: 22050
+duration: 3.0
+batch_size: 32
+lr: 0.003
+epochs: 60
+early_stopping: 12
+seed: 42
+optimizer: adam
+scheduler: cosine
+weight_decay: 0.00005
+label_smoothing: 0.1
+conv_channels: [64, 128, 256]
+fc_dims: [512, 256]
+dropout: 0.3

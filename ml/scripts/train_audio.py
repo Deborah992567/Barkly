@@ -184,13 +184,18 @@ def train_cnn(config: dict, train_samples, val_samples, output_dir: Path) -> dic
     model = AudioCNN(cnn_config).to(device)
     print(f"Device: {device} | Params: {sum(p.numel() for p in model.parameters()):,}")
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=config.get("label_smoothing", 0.0))
     optimizer = optim.Adam(
         model.parameters(),
         lr=config.get("lr", 0.001),
         weight_decay=config.get("weight_decay", 0.0001),
     )
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", patience=5)
+    if config.get("scheduler", "reduce_on_plateau") == "cosine":
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=config.get("epochs", 50), eta_min=1e-5
+        )
+    else:
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", patience=5)
 
     epochs = config.get("epochs", 50)
     patience = config.get("early_stopping", 10)
@@ -234,7 +239,7 @@ def train_cnn(config: dict, train_samples, val_samples, output_dir: Path) -> dic
 
         val_loss /= len(val_ds)
         val_acc = correct / total if total else 0
-        scheduler.step(val_loss)
+        scheduler.step(val_loss) if not isinstance(scheduler, optim.lr_scheduler.CosineAnnealingLR) else scheduler.step()
 
         print(f"Epoch {epoch + 1}/{epochs} | train_loss={train_loss:.4f} | val_loss={val_loss:.4f} | val_acc={val_acc:.4f}")
 
