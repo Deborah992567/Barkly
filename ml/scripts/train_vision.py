@@ -114,6 +114,12 @@ def train(config: dict, train_samples, val_samples, output_dir: Path) -> dict:
         device = torch.device("cpu")
     wrapper = get_model(num_classes, config)
     model = wrapper.model if hasattr(wrapper, "model") else wrapper
+    if config.get("freeze_backbone", False):
+        for name, param in model.named_parameters():
+            if not name.startswith("classifier"):
+                param.requires_grad = False
+        n_trainable = sum(p.requires_grad for p in model.parameters())
+        print(f"Backbone frozen; training {n_trainable} head parameters only")
     model.to(device)
     print(f"Device: {device} | Params: {sum(p.numel() for p in model.parameters()):,}")
 
