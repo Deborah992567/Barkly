@@ -79,15 +79,17 @@ Cross-split leakage check (hash, id, dog) reports **no leakage**.
 |-------|-------|
 | Dataset ID | `dogpose-cv` |
 | Modality | Image (JPEG) |
-| Raw images | 20,730 |
-| Labeled | 20,562 (168 unlabeled images removed) |
-| After dedup | 20,197 (226 exact-duplicate groups removed) |
+| Raw images | 20,730 (20,580 breed folders + 150 unlabeled `validation/` files) |
+| Labeled (CSV) | 20,423 unique IDs; 20,562 file matches incl. duplicate-name copies |
+| Removed: unlabeled | 168 |
+| Removed: exact duplicates | 365 sample instances (226 groups) |
+| After dedup | 20,197 |
 | Classes | 4 pose labels |
 | License | Apache-2.0 |
 | Source | Stock & Cavey (Colorado State); arXiv:2101.02380 |
 | URL | https://huggingface.co/datasets/stockeh/dog-pose-cv |
 | Dog identity | Not provided |
-| Breeds | 120 ImageNet categories (per-folder); breed kept as metadata |
+| Breeds | README claims 120; 119 per-breed label CSVs found (breed kept as metadata) |
 
 ### 2.2 Label taxonomy
 
@@ -122,6 +124,14 @@ instances (`dog_id == sample_id`). Cross-split leakage check (hash/id) reports
   baseline difficulty.
 - Web-scraped, curated: inconsistent lighting, angles, and backgrounds.
 - No temporal information (static images).
+- The shipped `validation/` folder (150 files) is unlabeled; the pipeline
+  drops it and its byte-identical copies of labeled images. Verification
+  details: see `dataset-validation-report.md`.
+
+> **Verified vs advertised:** the README claims 20,578 images with
+> standing/sitting/lying/undefined = 4,143/3,038/7,090/6,307. The shipped
+> label CSVs yield standing 7,047 / undefined 6,258 / lying 4,110 /
+> sitting 3,008 (20,423 unique IDs). The CSVs are the source of truth.
 
 ---
 

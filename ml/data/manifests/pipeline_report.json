@@ -33,10 +33,11 @@
     "dataset_id": "dogpose-cv",
     "modality": "vision",
     "license": "Apache-2.0",
-    "raw_labeled_samples": 20423,
+    "raw_labeled_samples": 20562,
     "unlabeled_images_removed": 168,
     "duplicate_groups": 226,
-    "duplicate_sample_ids_removed": 226,
+    "duplicate_sample_ids": 226,
+    "samples_removed_by_exact_dedup": 365,
     "total_after_dedup": 20197,
     "split_sizes": {
       "train": 14137,

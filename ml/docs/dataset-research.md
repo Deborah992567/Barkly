@@ -222,12 +222,16 @@ Datasets were identified through systematic searches across the following platfo
 | **URL** | https://huggingface.co/datasets/stockeh/dog-pose-cv |
 | **Authors** | Jason Stock, Tom Cavey (Colorado State) |
 | **Paper** | arXiv:2101.02380 |
-| **Samples** | 20,578 images |
-| **Dogs** | 120 breeds |
-| **Labels** | standing (4,143), sitting (3,038), lying down (7,090), undefined (6,307) |
+| **Samples** | 20,578 advertised; verified 20,730 files on disk, 20,197 usable after prep |
+| **Dogs** | 120 breeds advertised; 119 per-breed label CSVs found |
+| **Labels** | README claims standing (4,143), sitting (3,038), lying down (7,090), undefined (6,307); **verified label CSVs say** standing (7,047), undefined (6,258), lying (4,110), sitting (3,008) |
 | **License** | Apache 2.0 |
 | **Dog identity** | NO |
 | **Provenance** | Web-scraped, curated |
+
+> Verification note (2026-09-12): the advertised README class distribution
+> does **not** match the shipped label files; the label CSVs are treated as
+> the source of truth. See `dataset-validation-report.md`.
 
 **Known limitations:**
 - Class imbalance: "lying down" has more than double the samples of "sitting"
@@ -354,10 +358,10 @@ Datasets were identified through systematic searches across the following platfo
 | Criterion | DogPoseCV | Dog Emotion v2 | DEBIw | CREMD | DECADE |
 |-----------|-----------|----------------|-------|-------|--------|
 | **Modality** | Image | Image | Image | Video | Video |
-| **Samples** | 20,578 | 4,000 | 15,599 | 923 | 24,500 frames |
-| **Breeds** | 120 | Unknown | Unknown | Unknown | Unknown |
+| **Samples** | 20,578 advertised / 20,197 usable | 4,000 | 15,599 | 923 | 24,500 frames |
+| **Breeds** | 120 (adv.) / 119 CSV | Unknown | Unknown | Unknown | Unknown |
 | **Labels** | pose (4 classes) | emotion (4 classes) | emotion (4 classes) | emotion | movement |
-| **Label quality** | Moderate | Subjective | Subjective | Crowd-sourced | Movement-based |
+| **Label quality** | Moderate (CSV verified) | Subjective | Subjective | Crowd-sourced | Movement-based |
 | **Class balance** | Imbalanced | Unknown | Unknown | Unknown | N/A |
 | **Dog identity** | NO | NO | NO | NO | NO |
 | **Size** | Large | Small | Medium | Small | Medium |
@@ -378,7 +382,7 @@ Datasets were identified through systematic searches across the following platfo
 - **Why not others:** DogSpeak has 77K samples but labels are breed/sex, not vocalization type. ESC-50 has only 40 dog samples. No dataset with vocalization type labels (bark vs. whine vs. growl) was found.
 
 #### Vision: DogPoseCV
-- **Why selected:** 20,578 images across 120 breeds provides the largest and most diverse dog body pose dataset. Apache 2.0 license is fully permissive. Pose (standing/sitting/lying) is an observable physical feature that serves as useful input for behavioral state inference.
+- **Why selected:** 20,197 usable images (verified) across ~120 breeds provides the largest and most diverse dog body pose dataset. Apache 2.0 license is fully permissive. Pose (standing/sitting/lying) is an observable physical feature that serves as useful input for behavioral state inference.
 - **Why not others:** Dog Emotion v2 has subjective labels and limited license. DEBIw has licensing uncertainty. CREMD is too small. DECADE uses wrong perspective.
 
 ### Supplementary Datasets (AUXILIARY)
@@ -503,7 +507,7 @@ Datasets were identified through systematic searches across the following platfo
 
 8. **Breed diversity is limited in audio datasets.** Barkopedia Emotion covers only 2 breeds. Barkopedia Activity does not document breed coverage. A model trained on limited breeds may not generalize.
 
-9. **Class imbalance exists in vision data.** DogPoseCV has "lying down" (7,090) with more than double "sitting" (3,038). The "undefined" class (6,307) is 30.6% of data and contributes nothing useful.
+9. **Class imbalance exists in vision data.** Verified distribution: `standing` (34.6%) is ~2.4x `sitting` (14.7%) and the `undefined` class (30.6%) contributes nothing useful. (This differs from the README's advertised distribution; see `dataset-validation-report.md`.)
 
 10. **Non-commercial licenses exclude DogSpeak and ESC-50.** The two largest audio datasets (77K and 2K samples) are non-commercial, limiting BARKLY's deployment options.
 

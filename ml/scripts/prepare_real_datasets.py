@@ -102,7 +102,9 @@ def prepare_dogposecv(raw_dir: Path, out_dir: Path, seed: int = 42) -> dict:
             label_map[str(row["id"])] = str(row["label"])
 
     samples = []
+    total_images = 0
     for img in sorted(images_dir.rglob("*.jpg")):
+        total_images += 1
         label = label_map.get(img.name)
         if label is None:
             continue  # unlabeled image
@@ -131,6 +133,7 @@ def prepare_dogposecv(raw_dir: Path, out_dir: Path, seed: int = 42) -> dict:
     for group in dupes:
         for sid in group[1:]:
             dropped.add(sid)
+    labeled_before_dedup = len(manifest.samples)
     manifest.samples = [s for s in manifest.samples if s.sample_id not in dropped]
 
     split = split_dataset(manifest, strategy="random", seed=seed)
@@ -150,10 +153,11 @@ def prepare_dogposecv(raw_dir: Path, out_dir: Path, seed: int = 42) -> dict:
         "dataset_id": "dogpose-cv",
         "modality": "vision",
         "license": "Apache-2.0",
-        "raw_labeled_samples": len(manifest.samples) + len(dropped),
-        "unlabeled_images_removed": 168,
+        "raw_labeled_samples": labeled_before_dedup,
+        "unlabeled_images_removed": total_images - labeled_before_dedup,
         "duplicate_groups": len(dupes),
-        "duplicate_sample_ids_removed": len(dropped),
+        "duplicate_sample_ids": len(dropped),
+        "samples_removed_by_exact_dedup": labeled_before_dedup - len(manifest.samples),
         "total_after_dedup": len(manifest.samples),
         "split_sizes": {"train": len(split.train), "val": len(split.val), "test": len(split.test)},
         "class_distribution": dict(Counter(s.normalized_label for s in manifest.samples)),

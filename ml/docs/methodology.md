@@ -22,6 +22,10 @@ calibration → model selection → inference integration.**
 Raw data is downloaded with `huggingface_hub.snapshot_download` and kept under
 `ml/data/raw/` (git-ignored). MacOS archive junk (`__MACOSX`) is removed.
 
+Claim verification (advertised vs downloaded vs usable counts), validity
+checks, and removal rationale are documented in
+`ml/docs/dataset-validation-report.md` + `ml/data/manifests/pipeline_report.json`.
+
 ### 1.2 Manifest construction
 
 `ml/scripts/prepare_real_datasets.py` is the single reproducible entry point:
