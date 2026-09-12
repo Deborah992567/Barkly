@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.data.manifest import DatasetManifest
 from src.evaluation.metrics import (
+    EvaluationReport,
     compute_calibration_error,
     compute_ood_metrics,
     evaluate_classification,
@@ -159,8 +160,9 @@ def main() -> None:
     full["n_samples"] = int(len(y_true))
     full["n_known"] = int(known.sum())
     full["unknown_rate"] = float((~known).mean()) if len(y_true) else 0.0
+    full["no_known_predictions"] = bool(len(y_true_known) == 0)
     full["confidence_threshold"] = args.confidence_threshold
-    full["mean_confidence"] = float(np.mean(max_conf))
+    full["mean_confidence"] = float(np.mean(max_conf)) if len(max_conf) else 0.0
     full["median_confidence"] = float(np.median(max_conf))
     full["ood_flag_rate"] = float(np.mean(ood_flags)) if len(ood_flags) else 0.0
     full["confidence_percentiles"] = {

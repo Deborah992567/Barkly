@@ -122,8 +122,8 @@ All candidate datasets are documented in `data/manifests/dataset_registry.yaml` 
 
 | Dataset | Modality | Task | Samples | License |
 |---------|----------|------|---------|---------|
-| Barkopedia Activity & Environment | Audio | Behavioral context | 12,480 | MIT |
-| DogPoseCV | Vision | Pose classification | 20,578 | Apache 2.0 |
+| Barkopedia Activity & Environment | Audio | Behavioral context | 12,480 (12,478 after dedup) | MIT |
+| DogPoseCV | Vision | Pose classification | 20,730 (20,197 after dedup) | Apache 2.0 |
 
 ### Supplementary Datasets
 
