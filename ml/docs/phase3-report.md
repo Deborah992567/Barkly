@@ -36,8 +36,15 @@ unlabeled images dropped).
 | Model | Config | Artifact | Val acc | Test acc | ECE | OOD AUROC |
 |-------|--------|----------|---------|----------|-----|-----------|
 | Audio Random Forest (baseline) | audio_baseline.yaml | model.joblib | 0.240 | — | — | — |
-| Audio CNN | audio_cnn.yaml | model.pt | _fill_ | _fill_ | _fill_ | _fill_ |
+| Audio CNN | audio_cnn.yaml | model.pt | 0.203 | n/a¹ | n/a¹ | 0.0¹ |
 | Vision MobileNetV3-S | vision_baseline.yaml | model.pt | _fill_ | _fill_ | _fill_ | _fill_ |
+
+¹ At the 0.5 confidence gate, all 1,873 test clips are UNKNOWN (n_known = 0,
+unknown rate 1.000; mean confidence 0.216), so accuracy/ECE are undefined and
+OOD AUROC is degenerate. The model does not clear the trust gate on real test
+audio — an honest, dataset-limited result (87% of Barkopedia clips are < 3 s;
+labels are context-level). Details in `experiments/audio_cnn/evaluation.json`
+and `model-card.md`.
 
 ## 5. Components delivered
 

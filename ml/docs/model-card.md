@@ -36,7 +36,7 @@ standalone deployment.
 
 | Field | Value |
 |-------|-------|
-| Model version | `barkly-audio-v0.1.0` (v2 config) |
+| Model version | `barkly-audio-v0.1.0` (audio_cnn.yaml artifact; v2 config training) |
 | Modality | Audio |
 | Task | Behavioral context classification (8 classes) |
 | Architecture | `AudioCNN` — 3 conv blocks + adaptive pooling + 2 FC layers |
@@ -45,7 +45,23 @@ standalone deployment.
 | Dataset | Barkopedia Activity & Environment |
 | License (data) | MIT |
 
-*Performance to be completed after final test-set evaluation.*
+**Validation performance (best of 50 epochs):** accuracy 0.203 (chance ≈ 0.125).
+
+**Test-set performance (1,873 clips, confidence gate 0.5):** none of the test
+clips cleared the gate — classification accuracy is undefined, unknown rate
+1.000. Mean confidence 0.216 (median 0.204, p90 0.288); confidence is flat
+across classes. ECE not computable (no gated predictions); OOD AUROC 0.0
+(degenerate — the model assigns ≈0.2 max-confidence to both real and
+synthetic-noise inputs, so it does not separate them).
+
+**Interpretation:** the CNN is only marginally better than chance and never
+rises above the `UNKNOWN` trust threshold for real test audio, so BARKLY
+correctly surfaces UNKNOWN rather than an arbitrary class. This is a real,
+dataset-limited outcome: 87% of Barkopedia clips are under 3 s (mostly 0.1–1 s)
+and were labelled at the *context* level, so the log-mel of a 3 s window is
+mostly useless padding. The Random Forest baseline (0.240) tells the same
+story. The audio signal is not deployment-ready for `BarklyAudioProvider` as
+the sole behavioral signal; see `dataset-validation-report.md`.
 
 **Intended use:** production audio behavioral-context signal for the Phase 2
 `BarklyAudioProvider`, with confidence → UNKNOWN gating.
@@ -69,7 +85,8 @@ accuracy; generalization to rare breeds/unseen environments unverified.
 | Dataset | DogPoseCV (train 14,137 / val 3,029 / test 3,031) |
 | License (data) | Apache-2.0 |
 
-*Performance to be completed after final test-set evaluation.*
+**Performance:** to be completed after the vision training + test-set
+evaluation finishes (training in progress on this machine).
 
 **Intended use:** per-frame pose observation used as a visual behavioral
 signal; supports future multimodal fusion (Phase 4).

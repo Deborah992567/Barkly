@@ -7,4 +7,4 @@ seed: 42
 pretrained: true
 num_classes: null
 freeze_backbone: false
-fine_tune_layers: 5
+fine_tune_layers: 0

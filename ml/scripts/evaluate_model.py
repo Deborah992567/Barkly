@@ -151,11 +151,14 @@ def main() -> None:
     y_true_known = y_true[known]
     y_pred_known = y_pred[known]
 
-    report = evaluate_classification(
-        y_true_known,
-        y_pred_known,
-        class_names=class_names,
-    )
+    if len(y_true_known) == 0:
+        report = EvaluationReport(n_samples=0)
+    else:
+        report = evaluate_classification(
+            y_true_known,
+            y_pred_known,
+            class_names=class_names,
+        )
     full = report.to_dict()
     full["n_samples"] = int(len(y_true))
     full["n_known"] = int(known.sum())
