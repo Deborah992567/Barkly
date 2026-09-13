@@ -1,7 +1,9 @@
 # BARKLY Phase 3 Implementation Report
 
-> Status: **DRAFT** — final numbers to be filled after all training runs and
-> test-set evaluations complete.
+> Status: **COMPLETE** — audited dataset prep, trained audio + vision models,
+> and evaluated both on held-out test splits through the production inference
+> engines. (Vision trained under an explicit 8-epoch compute budget; the
+> 30-epoch recipe is the canonical configuration.)
 
 ## 1. Objective
 
@@ -37,7 +39,7 @@ unlabeled images dropped).
 |-------|--------|----------|---------|----------|-----|-----------|
 | Audio Random Forest (baseline) | audio_baseline.yaml | model.joblib | 0.240 | — | — | — |
 | Audio CNN | audio_cnn.yaml | model.pt | 0.203 | n/a¹ | n/a¹ | 0.0¹ |
-| Vision MobileNetV3-S | vision_baseline.yaml | model.pt | _fill_ | _fill_ | _fill_ | _fill_ |
+| Vision MobileNetV3-S | vision_baseline.yaml | model.pt | 0.777 | 0.807 | 0.044 | 0.989 |
 
 ¹ At the 0.5 confidence gate, all 1,873 test clips are UNKNOWN (n_known = 0,
 unknown rate 1.000; mean confidence 0.216), so accuracy/ECE are undefined and
@@ -45,6 +47,11 @@ OOD AUROC is degenerate. The model does not clear the trust gate on real test
 audio — an honest, dataset-limited result (87% of Barkopedia clips are < 3 s;
 labels are context-level). Details in `experiments/audio_cnn/evaluation.json`
 and `model-card.md`.
+
+² Vision evaluated end-to-end (2,762 / 3,031 test images above the 0.5 gate;
+unknown rate 0.089; mean confidence 0.814). Per-class test F1: standing 0.880,
+undefined 0.789, lying 0.777, sitting 0.701. Trained for 8 epochs (budget
+override on top of the committed 30-epoch recipe).
 
 ## 5. Components delivered
 

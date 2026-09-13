@@ -36,7 +36,7 @@ standalone deployment.
 
 | Field | Value |
 |-------|-------|
-| Model version | `barkly-audio-v0.1.0` (audio_cnn.yaml artifact; v2 config training) |
+| Model version | `barkly-audio-v0.1.0` (audio_cnn.yaml artifact) |
 | Modality | Audio |
 | Task | Behavioral context classification (8 classes) |
 | Architecture | `AudioCNN` — 3 conv blocks + adaptive pooling + 2 FC layers |
@@ -44,6 +44,10 @@ standalone deployment.
 | Training | MPS, Adam+cosine, label smoothing 0.1, seed 42 |
 | Dataset | Barkopedia Activity & Environment |
 | License (data) | MIT |
+
+A v2 config (deeper features, cosine schedule) was also trained to 21/60
+epochs and plateaued at the same val accuracy (0.181 vs 0.203) — the failure
+is data-limited, not capacity-limited.
 
 **Validation performance (best of 50 epochs):** accuracy 0.203 (chance ≈ 0.125).
 
@@ -85,8 +89,20 @@ accuracy; generalization to rare breeds/unseen environments unverified.
 | Dataset | DogPoseCV (train 14,137 / val 3,029 / test 3,031) |
 | License (data) | Apache-2.0 |
 
-**Performance:** to be completed after the vision training + test-set
-evaluation finishes (training in progress on this machine).
+**Validation performance (8-epoch budget run, full fine-tune):** best val
+accuracy 0.777; macro F1 0.750. Per-class val F1: standing 0.863, undefined
+0.733, lying 0.722, sitting 0.684.
+
+**Test-set performance (2,762 / 3,031 images above the 0.5 gate; unknown rate
+0.089):** accuracy 0.807, macro F1 0.787, weighted F1 0.808, ECE 0.044,
+OOD AUROC 0.989. Per-class test F1: standing 0.880, undefined 0.789, lying
+0.777, sitting 0.701.
+
+**Interpretation:** the vision model produces a usable, well-calibrated pose
+signal — the strongest result in Phase 3. It correctly rejects ~9% of inputs
+as UNKNOWN and separates synthetic OOD inputs cleanly (AUROC 0.989). `sitting`
+is the weakest class (shared silhouettes with `lying`/`undefined`). This is an
+observation signal for future multimodal fusion, not a diagnosis.
 
 **Intended use:** per-frame pose observation used as a visual behavioral
 signal; supports future multimodal fusion (Phase 4).

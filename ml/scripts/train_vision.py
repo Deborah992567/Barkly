@@ -97,11 +97,27 @@ def get_model(num_classes: int, config: dict) -> nn.Module:
         return VisionCNN(num_classes, config)
 
 
-def train(config: dict, train_samples, val_samples, output_dir: Path) -> dict:
+def train(
+    config: dict,
+    train_samples,
+    val_samples,
+    output_dir: Path,
+    epochs_override: int | None = None,
+    num_workers: int = 0,
+) -> dict:
     train_ds = VisionManifestDataset(train_samples, config, augment=True)
     val_ds = VisionManifestDataset(val_samples, config, augment=False)
-    train_loader = DataLoader(train_ds, batch_size=config.get("batch_size", 32), shuffle=True)
-    val_loader = DataLoader(val_ds, batch_size=config.get("batch_size", 32))
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=config.get("batch_size", 32),
+        shuffle=True,
+        num_workers=num_workers,
+    )
+    val_loader = DataLoader(
+        val_ds,
+        batch_size=config.get("batch_size", 32),
+        num_workers=num_workers,
+    )
 
     labels = train_ds.labels
     num_classes = len(labels)
@@ -127,6 +143,8 @@ def train(config: dict, train_samples, val_samples, output_dir: Path) -> dict:
     optimizer = optim.Adam(model.parameters(), lr=config.get("lr", 0.001))
 
     epochs = config.get("epochs", 30)
+    if epochs_override is not None:
+        epochs = epochs_override
     best_val_acc = 0.0
     wait = 0
     patience = config.get("early_stopping", 10)
@@ -135,6 +153,7 @@ def train(config: dict, train_samples, val_samples, output_dir: Path) -> dict:
 
     for epoch in range(epochs):
         model.train()
+        step = 0
         for images, targets in train_loader:
             images, targets = images.to(device), targets.to(device)
             optimizer.zero_grad()
@@ -142,6 +161,13 @@ def train(config: dict, train_samples, val_samples, output_dir: Path) -> dict:
             loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
+            step += 1
+            if step % 100 == 0:
+                print(
+                    f"  epoch {epoch + 1}/{epochs} | batch {step}/{len(train_loader)} "
+                    f"| loss {loss.item():.4f}",
+                    flush=True,
+                )
 
         model.eval()
         correct = 0
@@ -198,6 +224,18 @@ def main() -> None:
     parser.add_argument("config", help="Path to YAML config file")
     parser.add_argument("--manifest", required=True, help="Path to prepared manifest.yaml")
     parser.add_argument("--output", default="experiments/vision", help="Output directory")
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=None,
+        help="Override epoch budget (defaults to config 'epochs')",
+    )
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=0,
+        help="DataLoader workers for image loading+augmentation",
+    )
     args = parser.parse_args()
 
     with open(args.config) as f:
@@ -211,7 +249,14 @@ def main() -> None:
 
     output_dir = Path(args.output)
     print("Training vision model...")
-    metrics = train(config, train_manifest.samples, val_manifest.samples, output_dir)
+    metrics = train(
+        config,
+        train_manifest.samples,
+        val_manifest.samples,
+        output_dir,
+        epochs_override=args.epochs,
+        num_workers=args.num_workers,
+    )
     print(f"Accuracy: {metrics['accuracy']:.4f}")
     print(f"Artifacts saved to {output_dir}")
 
