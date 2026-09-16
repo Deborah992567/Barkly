@@ -38,6 +38,36 @@ class Settings(BaseSettings):
     # --- AI provider ---
     ai_provider: str = "development-placeholder"
 
+    # --- Phase 4 real-model inference configuration ---
+    # Paths to the Phase 3 artifacts (see ml/model_registry.yaml for provenance).
+    # Paths are resolved relative to the repository root when given as relative.
+    ai_ml_package_path: str = "../ml/src"
+    ai_model_registry_path: str = "../ml/model_registry.yaml"
+    ai_audio_model_path: str = "ml/experiments/audio_cnn_v2/model.pt"
+    ai_audio_config_path: str = "ml/configs/audio_cnn_v2.yaml"
+    ai_vision_model_path: str = "ml/experiments/vision_baseline/model.pt"
+    ai_vision_config_path: str = "ml/configs/vision_baseline.yaml"
+
+    # Thresholds and system versions. These settings ARE the documentation of
+    # the uncertainty policy; they are never silently overridden elsewhere.
+    ai_audio_confidence_threshold: float = 0.30
+    ai_vision_confidence_threshold: float = 0.50
+    ai_audio_ood_threshold: float | None = None
+    ai_fusion_version: str = "barkly-fusion-1.0.0"
+    ai_interpretation_version: str = "barkly-interpretation-1.0.0"
+    ai_inference_timeout_seconds: float = 60.0
+
+    # Video sampling: frames evenly sampled across the clip are run through the
+    # vision model and aggregated. 0 disables video frame extraction.
+    ai_vision_frames: int = 3
+    ai_vision_frame_ffmpeg_binary: str = "ffmpeg"
+
+    # Fusion weights (documented in docs/multimodal-fusion.md).
+    ai_fusion_audio_weight: float = 0.35
+    ai_fusion_vision_weight: float = 0.45
+    ai_fusion_context_weight: float = 0.20
+    ai_fusion_contradiction_penalty: float = 0.25
+
     # --- Media ---
     media_storage_provider: str = "local"
     media_storage_root: str = "./media_storage"

@@ -1,0 +1,107 @@
+# BARKLY Phase 4 — Model Registry
+#
+# Source of truth for the Phase 3 artifacts that the Phase 4 backend integrates.
+# Every entry is tied to an on-disk artifact and the documented evaluation that
+# produced it. Version strings here are traceability labels recorded with every
+# analysis result; they are NOT capability claims. Models are weak where the
+# evaluation shows them to be weak — that is handled by the inference policy,
+# not hidden.
+
+registry_version: "0.1.0"
+
+models:
+  - id: barkly-audio-cnn-v2
+    modality: audio
+    task: activity_classification
+    artifact_path: experiments/audio_cnn_v2/model.pt
+    config_path: configs/audio_cnn_v2.yaml
+    model_class: AudioCNN
+    labels:
+      - alerting_to_sounds
+      - begging_for_food
+      - playing_with_human
+      - playing_with_other_animals
+      - playing_with_toy
+      - rest
+      - seeking_attention
+      - taking_shower
+    dataset_id: barkopedia-activity-env
+    dataset_version: "1.0"
+    preprocessing_version: "0.1.0"
+    train_val_test_split: [8734, 1871, 1873]
+    split_seed: 42
+    mtime_artifact: "2026-09-12T23:42Z"
+    evaluation:
+      validation_accuracy: 0.2106
+      metrics_source: experiments/audio_cnn_v2/metrics.json
+      # NOTE: the on-disk checkpoint is from the interrupted 21-epoch run; the
+      # metrics.json describes the earlier full 60-epoch run. Balanced accuracy
+      # is only slightly above random chance for 8 classes (0.125), so audio
+      # evidence is treated as WEAK by the inference policy.
+      interpretation_policy: weak_evidence_high_unknown_priority
+    known_limitations:
+      - Balanced accuracy ~0.21 on validation (only slightly above random for 8 classes)
+      - Test evaluation at a 0.5 confidence threshold returned UNKNOWN for ~100% of clips
+      - 87% of clips are under 3s; the fixed 3s window is mostly zero-padding
+      - Labels are activity context, not vocalization types and not emotional states
+    latency_measured:
+      per_clip_seconds_approx: 0.5
+      device: Apple Silicon (MPS)
+
+  - id: barkly-audio-cnn-v1
+    modality: audio
+    task: activity_classification
+    artifact_path: experiments/audio_cnn/model.pt
+    config_path: configs/audio_cnn.yaml
+    model_class: AudioCNN
+    labels:
+      - alerting_to_sounds
+      - begging_for_food
+      - playing_with_human
+      - playing_with_other_animals
+      - playing_with_toy
+      - rest
+      - seeking_attention
+      - taking_shower
+    dataset_id: barkopedia-activity-env
+    dataset_version: "1.0"
+    preprocessing_version: "0.1.0"
+    train_val_test_split: [8734, 1871, 1873]
+    split_seed: 42
+    evaluation:
+      validation_accuracy: 0.203
+      test_unknown_rate_at_threshold_0_5: 1.0
+      interpretation_policy: weak_evidence_high_unknown_priority
+    latency_measured:
+      per_clip_seconds_approx: 0.5
+      device: Apple Silicon (MPS)
+
+  - id: barkly-vision-mobilenet-v3-small
+    modality: vision
+    task: pose_classification
+    artifact_path: experiments/vision_baseline/model.pt
+    config_path: configs/vision_baseline.yaml
+    model_class: VisionBaselineModel
+    labels:
+      - standing
+      - sitting
+      - lying
+      - undefined
+    dataset_id: dogpose-cv
+    dataset_version: "1.0"
+    preprocessing_version: "0.1.0"
+    train_val_test_split: [14137, 3029, 3031]
+    split_seed: 42
+    evaluation:
+      test_accuracy: 0.8074
+      test_ece: 0.0439
+      ood_auroc: 0.9887
+      metrics_source: experiments/vision_baseline/evaluation.json
+      interpretation_policy: observable_pose_only
+    known_limitations:
+      - Labels are body poses only; they are NOT behavioral or emotional states
+      - "undefined" class covers 30% of the dataset
+      - No dog identity, so near-duplicate leakage across breeds is possible
+    latency_measured:
+      per_image_seconds_approx: 0.5
+      device: Apple Silicon (MPS)

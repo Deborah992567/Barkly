@@ -104,3 +104,32 @@ class FailureCode(StrEnum):
     PROVIDER_TIMEOUT = "PROVIDER_TIMEOUT"
     INTERNAL = "INTERNAL"
     CANCELLED = "CANCELLED"
+
+
+class BehavioralHints(StrEnum):
+    """Canonical evidence hints used by the fusion/interpretation layer.
+
+    These are *support* indicators, never certainty. They combine model outputs
+    and context for the evidence-based interpretation rules.
+    """
+
+    AUDIO_ALERTING = "AUDIO_ALERTING"
+    AUDIO_PLAYING = "AUDIO_PLAYING"
+    AUDIO_ATTENTION = "AUDIO_ATTENTION"
+    AUDIO_REST = "AUDIO_REST"
+    AUDIO_FOOD = "AUDIO_FOOD"
+    AUDIO_SHOWER = "AUDIO_SHOWER"
+    VISION_STANDING = "VISION_STANDING"
+    VISION_SITTING = "VISION_SITTING"
+    VISION_LYING = "VISION_LYING"
+    OWNER_PRESENT = "OWNER_PRESENT"
+    OWNER_AWAY = "OWNER_AWAY"
+    RECENT_PLAY = "RECENT_PLAY"
+    RECENT_WALK = "RECENT_WALK"
+    RECENT_FEEDING = "RECENT_FEEDING"
+    RECENT_STRESS = "RECENT_STRESS"
+    STRANGERS_PRESENT = "STRANGERS_PRESENT"
+    OTHER_ANIMALS_PRESENT = "OTHER_ANIMALS_PRESENT"
+    CONTEXT_PLAYING = "CONTEXT_PLAYING"
+    CONTEXT_RESTING = "CONTEXT_RESTING"
+    NIGHTTIME = "NIGHTTIME"

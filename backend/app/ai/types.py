@@ -40,6 +40,15 @@ class VisualSignal:
 
 
 @dataclass(frozen=True)
+class MediaRef:
+    """A stored media asset a provider can resolve through the storage layer."""
+
+    media_type: str
+    storage_reference: str
+    duration_ms: int | None = None
+
+
+@dataclass(frozen=True)
 class ContextSignals:
     owner_presence: OwnerPresence | None = None
     activity_state: ActivityState | None = None
@@ -67,6 +76,33 @@ class AnalysisInput:
     audio: AudioSignal | None = None
     visual: VisualSignal = field(default_factory=VisualSignal)
     context: ContextSignals = field(default_factory=ContextSignals)
+    media_refs: tuple[MediaRef, ...] = ()
+
+
+@dataclass(frozen=True)
+class SignalAvailability:
+    """Which modality signals were available and usable for this analysis."""
+
+    audio_available: bool = False
+    video_available: bool = False
+    context_available: bool = False
+    audio_quality: str | None = None  # "good" | "low" | "none"
+    video_quality: str | None = None  # "good" | "low" | "none"
+    context_completeness: str | None = None  # "high" | "partial" | "none"
+
+
+@dataclass(frozen=True)
+class ModelTrace:
+    """Version metadata recorded with a result for full traceability."""
+
+    audio_model_name: str | None = None
+    audio_model_version: str | None = None
+    vision_model_name: str | None = None
+    vision_model_version: str | None = None
+    preprocessing_version: str | None = None
+    dataset_version: str | None = None
+    fusion_version: str | None = None
+    interpretation_version: str | None = None
 
 
 @dataclass(frozen=True)
@@ -78,3 +114,8 @@ class InferenceResult:
     explanation: str
     detected_audio_category: AudioCategory | None
     model: ModelIdentity
+    signals: SignalAvailability = field(default_factory=SignalAvailability)
+    trace: ModelTrace = field(default_factory=ModelTrace)
+    inference_latency_ms: int | None = None
+    is_insufficient_evidence: bool = False
+    safety_note: str | None = None

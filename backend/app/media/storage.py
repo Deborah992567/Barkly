@@ -25,6 +25,15 @@ class StorageProvider(Protocol):
 
     def delete(self, reference: str) -> None: ...
 
+    def resolve(self, reference: str) -> "Path | None":
+        """Return a readable local path for a stored reference, or None.
+
+        Used by inference providers to feed stored media into model
+        preprocessing without exposing storage internals through the API.
+        References that do not match the opaque storage format resolve to None.
+        """
+        ...
+
 
 class LocalStorage:
     """Developer storage provider writing files under MEDIA_STORAGE_ROOT."""
@@ -44,6 +53,12 @@ class LocalStorage:
         path = self._root / reference
         if path.exists():
             path.unlink()
+
+    def resolve(self, reference: str) -> Path | None:
+        if not _REF_PATTERN.match(reference):
+            return None
+        path = self._root / reference
+        return path if path.is_file() else None
 
 
 def get_storage(provider_name: str) -> StorageProvider:
