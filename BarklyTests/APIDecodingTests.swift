@@ -84,6 +84,9 @@ final class APIDecodingTests: XCTestCase {
         let dto = try decoder.decode(AnalysisDTO.self, from: Data(json.utf8))
         XCTAssertEqual(dto.inputType, "AUDIO")
         let analysis = BehaviorAnalysis(dto: dto)
+        XCTAssertEqual(analysis.status, .completed)
+        XCTAssertNil(analysis.failureMessage)
+        XCTAssertTrue(analysis.isUsableResult)
         XCTAssertEqual(analysis.estimatedState, .playful)
         XCTAssertEqual(analysis.confidence, 0.75, accuracy: 0.0001)
         XCTAssertEqual(analysis.secondaryBehaviors, [.excited])
@@ -103,6 +106,74 @@ final class APIDecodingTests: XCTestCase {
         XCTAssertEqual(AnalysisInputType.photo.apiValue, "IMAGE")
         XCTAssertEqual(AnalysisInputType(apiValue: "VIDEO"), .video)
         XCTAssertNil(AnalysisInputType(apiValue: "BOGUS"))
+    }
+
+    func testAnalysisStatusWireMapping() {
+        XCTAssertEqual(AnalysisStatus(apiValue: "CREATED"), .created)
+        XCTAssertEqual(AnalysisStatus(apiValue: "QUEUED"), .queued)
+        XCTAssertEqual(AnalysisStatus(apiValue: "PROCESSING"), .processing)
+        XCTAssertEqual(AnalysisStatus(apiValue: "COMPLETED"), .completed)
+        XCTAssertEqual(AnalysisStatus(apiValue: "FAILED"), .failed)
+        XCTAssertEqual(AnalysisStatus(apiValue: "CANCELLED"), .cancelled)
+        XCTAssertTrue(AnalysisStatus.completed.isUsableResult)
+        XCTAssertFalse(AnalysisStatus.failed.isUsableResult)
+        XCTAssertTrue(AnalysisStatus.processing.isInProgress)
+        XCTAssertTrue(AnalysisStatus.cancelled.isTerminal)
+    }
+
+    func testFailedAnalysisMapsFailureMessageAndDefaultsState() throws {
+        let json = """
+        {
+            "analysis_id": "33333333-3333-3333-3333-333333333333",
+            "dog_id": "11111111-1111-1111-1111-111111111111",
+            "status": "FAILED",
+            "input_type": "AUDIO",
+            "created_at": "2026-09-10T12:00:00Z",
+            "failure": {"code": "AUDIO_EMPTY", "message": "No audio frames detected."},
+            "media": [],
+            "result": null
+        }
+        """
+        let dto = try decoder.decode(AnalysisDTO.self, from: Data(json.utf8))
+        let analysis = BehaviorAnalysis(dto: dto)
+        XCTAssertEqual(analysis.status, .failed)
+        XCTAssertEqual(analysis.failureMessage, "No audio frames detected.")
+        XCTAssertEqual(analysis.estimatedState, .unknown)
+        XCTAssertFalse(analysis.isUsableResult)
+    }
+
+    func testInsufficientEvidenceStaysUsable() throws {
+        let json = """
+        {
+            "analysis_id": "44444444-4444-4444-4444-444444444444",
+            "dog_id": "11111111-1111-1111-1111-111111111111",
+            "status": "COMPLETED",
+            "input_type": "AUDIO",
+            "created_at": "2026-09-10T12:00:00Z",
+            "media": [],
+            "result": {
+                "primary_behavior": "UNKNOWN",
+                "confidence": 0.0,
+                "secondary_behaviors": [],
+                "observations": [],
+                "explanation": "Not enough signal.",
+                "disclaimer": "Not a diagnosis.",
+                "provider": "barkly-models",
+                "model_name": "fusion-v1",
+                "model_version": "barkly-fusion-1.0.0",
+                "is_placeholder": false,
+                "generated_at": "2026-09-10T12:00:05Z",
+                "is_insufficient_evidence": true
+            }
+        }
+        """
+        let dto = try decoder.decode(AnalysisDTO.self, from: Data(json.utf8))
+        let analysis = BehaviorAnalysis(dto: dto)
+        XCTAssertEqual(analysis.status, .completed)
+        XCTAssertEqual(analysis.estimatedState, .unknown)
+        XCTAssertTrue(analysis.isInsufficientEvidence)
+        XCTAssertTrue(analysis.isUsableResult)
+        XCTAssertNotEqual(analysis.status, .failed)
     }
 
     func testHistoryPageDecodes() throws {

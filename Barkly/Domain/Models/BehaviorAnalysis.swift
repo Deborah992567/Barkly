@@ -5,6 +5,8 @@ struct BehaviorAnalysis: Identifiable, Hashable, Codable, Sendable {
     let dogID: UUID
     let createdAt: Date
     let inputType: AnalysisInputType
+    let status: AnalysisStatus
+    let failureMessage: String?
     let vocalizationType: VocalizationType?
     let estimatedState: BehaviorState
     let confidence: Float
@@ -21,6 +23,8 @@ struct BehaviorAnalysis: Identifiable, Hashable, Codable, Sendable {
         dogID: UUID,
         createdAt: Date = Date(),
         inputType: AnalysisInputType,
+        status: AnalysisStatus = .completed,
+        failureMessage: String? = nil,
         vocalizationType: VocalizationType? = nil,
         estimatedState: BehaviorState,
         confidence: Float,
@@ -36,6 +40,8 @@ struct BehaviorAnalysis: Identifiable, Hashable, Codable, Sendable {
         self.dogID = dogID
         self.createdAt = createdAt
         self.inputType = inputType
+        self.status = status
+        self.failureMessage = failureMessage
         self.vocalizationType = vocalizationType
         self.estimatedState = estimatedState
         self.confidence = confidence
@@ -46,6 +52,12 @@ struct BehaviorAnalysis: Identifiable, Hashable, Codable, Sendable {
         self.modelName = modelName
         self.modelVersion = modelVersion
         self.isInsufficientEvidence = isInsufficientEvidence
+    }
+
+    /// Whether the analysis finished and produced a usable (even if UNKNOWN)
+    /// interpretation rather than failing or still being in-flight.
+    var isUsableResult: Bool {
+        status == .completed
     }
 
     var confidencePercent: Int {

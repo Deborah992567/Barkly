@@ -31,6 +31,8 @@ extension BehaviorAnalysis {
             dogID: dto.dogId,
             createdAt: dto.createdAt,
             inputType: AnalysisInputType(apiValue: dto.inputType) ?? .behavior,
+            status: AnalysisStatus(apiValue: dto.status),
+            failureMessage: dto.failure?.message,
             estimatedState: result.map { BehaviorState.fromPrimaryBehavior($0.primaryBehavior) } ?? .unknown,
             confidence: result.map { Float($0.confidence) } ?? 0,
             observations: result?.observations.map(\.description) ?? [],
