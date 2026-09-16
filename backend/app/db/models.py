@@ -189,6 +189,19 @@ class AnalysisResult(Base):
     model_name: Mapped[str] = mapped_column(String(80))
     model_version: Mapped[str] = mapped_column(String(40))
     is_placeholder: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Phase 4 tracability: which model artifacts, datasets and system versions
+    # produced this result, plus the signal availability snapshot.
+    audio_model_name: Mapped[str | None] = mapped_column(String(120))
+    audio_model_version: Mapped[str | None] = mapped_column(String(80))
+    vision_model_name: Mapped[str | None] = mapped_column(String(120))
+    vision_model_version: Mapped[str | None] = mapped_column(String(80))
+    preprocessing_version: Mapped[str | None] = mapped_column(String(80))
+    dataset_version: Mapped[str | None] = mapped_column(String(120))
+    fusion_version: Mapped[str | None] = mapped_column(String(80))
+    interpretation_version: Mapped[str | None] = mapped_column(String(80))
+    inference_latency_ms: Mapped[int | None] = mapped_column(Integer)
+    is_insufficient_evidence: Mapped[bool] = mapped_column(Boolean, default=False)
+    signals_available: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     analysis: Mapped[Analysis] = relationship(back_populates="result")

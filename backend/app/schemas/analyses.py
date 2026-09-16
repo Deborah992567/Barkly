@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import Field, model_validator
@@ -76,6 +77,18 @@ class AnalysisResultRead(ConfidenceMixin):
     model_version: str
     is_placeholder: bool
     generated_at: datetime
+    # Phase 4 traceability + signal availability (optional for historic rows).
+    audio_model_name: str | None = None
+    audio_model_version: str | None = None
+    vision_model_name: str | None = None
+    vision_model_version: str | None = None
+    preprocessing_version: str | None = None
+    dataset_version: str | None = None
+    fusion_version: str | None = None
+    interpretation_version: str | None = None
+    inference_latency_ms: int | None = None
+    is_insufficient_evidence: bool = False
+    signals_available: dict[str, Any] | None = None
 
 
 class AnalysisStatusRead(APIModel):

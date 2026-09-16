@@ -70,6 +70,17 @@ def _result_to_read(result, observations: list) -> AnalysisResultRead:
         model_version=result.model_version,
         is_placeholder=result.is_placeholder,
         generated_at=result.generated_at,
+        audio_model_name=result.audio_model_name,
+        audio_model_version=result.audio_model_version,
+        vision_model_name=result.vision_model_name,
+        vision_model_version=result.vision_model_version,
+        preprocessing_version=result.preprocessing_version,
+        dataset_version=result.dataset_version,
+        fusion_version=result.fusion_version,
+        interpretation_version=result.interpretation_version,
+        inference_latency_ms=result.inference_latency_ms,
+        is_insufficient_evidence=result.is_insufficient_evidence,
+        signals_available=result.signals_available,
     )
 
 

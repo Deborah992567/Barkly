@@ -28,6 +28,7 @@ from app.ai.types import (
     AudioSignal,
     ContextSignals,
     DogContext,
+    MediaRef,
     VisualSignal,
 )
 from app.core.config import get_settings
@@ -83,7 +84,7 @@ class AnalysisService:
                 duration_ms=(
                     payload.duration_ms if payload.duration_ms is not None else asset.duration_ms
                 ),
-                storage_reference=f"asset:{asset.id}",
+                storage_reference=asset.storage_reference,
             )
             self._analyses.add_media_source(analysis, snapshot)
         if payload.context is not None:
@@ -152,6 +153,7 @@ class AnalysisService:
             AnalysisObservation(category=obs.category.value, description=obs.description)
             for obs in result.observations
         ]
+        signals = result.signals
         await self._analyses.complete(
             analysis,
             primary_behavior=result.primary_behavior,
@@ -169,6 +171,24 @@ class AnalysisService:
             model_version=result.model.model_version,
             is_placeholder=result.model.is_placeholder,
             observations=observations,
+            audio_model_name=result.trace.audio_model_name,
+            audio_model_version=result.trace.audio_model_version,
+            vision_model_name=result.trace.vision_model_name,
+            vision_model_version=result.trace.vision_model_version,
+            preprocessing_version=result.trace.preprocessing_version,
+            dataset_version=result.trace.dataset_version,
+            fusion_version=result.trace.fusion_version,
+            interpretation_version=result.trace.interpretation_version,
+            inference_latency_ms=result.inference_latency_ms,
+            is_insufficient_evidence=result.is_insufficient_evidence,
+            signals_available={
+                "audio_available": signals.audio_available,
+                "video_available": signals.video_available,
+                "context_available": signals.context_available,
+                "audio_quality": signals.audio_quality,
+                "video_quality": signals.video_quality,
+                "context_completeness": signals.context_completeness,
+            },
         )
         await self._session.commit()
         logger.info(
@@ -234,6 +254,10 @@ class AnalysisService:
             audio=audio,
             visual=visual,
             context=self._map_context(payload.context),
+            media_refs=tuple(
+                MediaRef(media_type=asset.media_type, storage_reference=asset.storage_reference)
+                for asset in assets
+            ),
         )
 
     def _map_context(self, context: AnalysisContextCreate | None) -> ContextSignals:

@@ -127,6 +127,17 @@ class AnalysisRepository:
         model_version: str,
         is_placeholder: bool,
         observations: list[AnalysisObservation],
+        audio_model_name: str | None = None,
+        audio_model_version: str | None = None,
+        vision_model_name: str | None = None,
+        vision_model_version: str | None = None,
+        preprocessing_version: str | None = None,
+        dataset_version: str | None = None,
+        fusion_version: str | None = None,
+        interpretation_version: str | None = None,
+        inference_latency_ms: int | None = None,
+        is_insufficient_evidence: bool = False,
+        signals_available: dict | None = None,
     ) -> None:
         analysis.status = AnalysisStatus.COMPLETED.value
         analysis.completed_at = _utcnow()
@@ -142,6 +153,17 @@ class AnalysisRepository:
             model_name=model_name,
             model_version=model_version,
             is_placeholder=is_placeholder,
+            audio_model_name=audio_model_name,
+            audio_model_version=audio_model_version,
+            vision_model_name=vision_model_name,
+            vision_model_version=vision_model_version,
+            preprocessing_version=preprocessing_version,
+            dataset_version=dataset_version,
+            fusion_version=fusion_version,
+            interpretation_version=interpretation_version,
+            inference_latency_ms=inference_latency_ms,
+            is_insufficient_evidence=is_insufficient_evidence,
+            signals_available=signals_available,
         )
         for observation in observations:
             observation.analysis = analysis
