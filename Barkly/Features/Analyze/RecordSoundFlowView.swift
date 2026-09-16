@@ -6,6 +6,8 @@ struct RecordSoundFlowView: View {
     @Environment(AppContainer.self) private var app
     @State private var controller: AnalysisFlowController?
     @State private var startDate: Date?
+    @State private var context = AnalysisContextInput.empty
+    @State private var showContextSheet = false
 
     var body: some View {
         ZStack {
@@ -21,6 +23,23 @@ struct RecordSoundFlowView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .navigationBarBackButtonHidden(false)
+        .sheet(isPresented: $showContextSheet) {
+            AnalysisContextSheet(context: $context)
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    Haptics.light()
+                    showContextSheet = true
+                } label: {
+                    Label("Context", systemImage: "slider.horizontal.3")
+                }
+                .accessibilityHint("Add optional context about this moment")
+            }
+        }
+        .onChange(of: context) { _, newValue in
+            controller?.pendingContext = newValue
+        }
         .task {
             if controller == nil {
                 let newController = AnalysisFlowController(container: app)

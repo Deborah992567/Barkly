@@ -19,6 +19,8 @@ struct MediaFlowView: View {
     @State private var pickedMovie: MovieFile?
     @State private var isLoading = false
     @State private var analyzeError: AnalysisFlowController.AnalysisError?
+    @State private var context = AnalysisContextInput.empty
+    @State private var showContextSheet = false
 
     private var title: String {
         switch mode {
@@ -40,6 +42,23 @@ struct MediaFlowView: View {
             }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Haptics.light()
+                        showContextSheet = true
+                    } label: {
+                        Label("Context", systemImage: "slider.horizontal.3")
+                    }
+                    .accessibilityHint("Add optional context about this moment")
+                }
+            }
+            .sheet(isPresented: $showContextSheet) {
+                AnalysisContextSheet(context: $context)
+            }
+            .onChange(of: context) { _, newValue in
+                controller?.pendingContext = newValue
+            }
         }
         .task {
             guard controller == nil else { return }

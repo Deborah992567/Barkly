@@ -146,6 +146,36 @@ final class AnalysisFlowController {
         }
     }
 
+    /// Submits a behavior-observation analysis (no media) with optional context.
+    func requestBehaviorAnalysis(context: AnalysisContextInput?) async {
+        pendingContext = context
+        guard let dogID = container.selectedDogID else {
+            phase = .failed(AnalysisError(
+                title: "No dog selected",
+                message: "Choose a dog first, then try the analysis again.",
+                recovery: .retry
+            ))
+            return
+        }
+        phase = .processing
+        do {
+            let analysis = try await container.analysisRepository.requestBehaviorAnalysis(
+                for: dogID,
+                context: pendingContext
+            )
+            try await container.historyRepository.record(analysis)
+            phase = .ready(analysis)
+        } catch let error as AppRepositoryError {
+            phase = .failed(map(error))
+        } catch {
+            phase = .failed(AnalysisError(
+                title: "Analysis unavailable",
+                message: "Something went wrong while reading the signal. Please try again.",
+                recovery: .retry
+            ))
+        }
+    }
+
     /// Submits an analysis for media already captured (video or photo files).
     func submit(inputType: AnalysisInputType, mediaURLs: [URL], duration: TimeInterval? = nil) async {
         await submit(

@@ -5,6 +5,7 @@ struct AnalyzeView: View {
         case record
         case video
         case upload
+        case behavior
     }
 
     @Environment(AppContainer.self) private var app
@@ -12,7 +13,7 @@ struct AnalyzeView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            AnalyzeOptionsView()
+            AnalyzeOptionsView(onBehavior: { path.append(.behavior) })
                 .navigationDestination(for: Route.self) { route in
                     destination(for: route)
                 }
@@ -42,6 +43,8 @@ struct AnalyzeView: View {
             MediaFlowView(mode: .video, onDone: { path.removeAll() })
         case .upload:
             MediaFlowView(mode: .any, onDone: { path.removeAll() })
+        case .behavior:
+            BehaviorFlowView(onDone: { path.removeAll() })
         }
     }
 }
@@ -58,6 +61,7 @@ private extension AnalyzeView.Route {
 
 struct AnalyzeOptionsView: View {
     @Environment(AppContainer.self) private var app
+    var onBehavior: () -> Void = {}
 
     var body: some View {
         ScrollView {
@@ -118,6 +122,13 @@ struct AnalyzeOptionsView: View {
                 subtitle: "Pick a photo or video you already have."
             ) {
                 app.openAnalyzer(.upload)
+            }
+            PathwayRow(
+                icon: "eye.fill",
+                title: "Log behavior now",
+                subtitle: "Describe the moment and estimate from behavior."
+            ) {
+                onBehavior()
             }
         }
     }

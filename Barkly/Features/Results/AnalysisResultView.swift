@@ -7,6 +7,9 @@ struct AnalysisResultView: View {
     let onDone: () -> Void
 
     @Environment(AppContainer.self) private var app
+    @State private var feedbackSubmitted = false
+    @State private var needsCorrection = false
+    @State private var correction: BehaviorState?
 
     var body: some View {
         ScrollView {
@@ -18,11 +21,23 @@ struct AnalysisResultView: View {
 
                 interpretationCard
 
+                insufficientEvidenceNote
+
                 observationsSection
+
+                secondarySection
 
                 whySection
 
+                if let safetyNote = analysis.safetyNote {
+                    safetyNoteSection(safetyNote)
+                }
+
                 disclaimerSection
+
+                if app.feedbackRepository != nil {
+                    feedbackSection
+                }
 
                 if showsActions {
                     actions
@@ -144,6 +159,171 @@ struct AnalysisResultView: View {
             .background(BarklyColor.surface, in: RoundedRectangle(cornerRadius: BarklyRadius.small, style: .continuous))
         }
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var insufficientEvidenceNote: some View {
+        if analysis.isInsufficientEvidence {
+            VStack(alignment: .leading, spacing: BarklySpacing.sm) {
+                HStack(alignment: .top, spacing: BarklySpacing.sm) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(BarklyColor.cosmicOrangeDeep)
+                        .padding(.top, 1)
+                    Text("The signals were too weak to reach a confident estimate. A clearer recording with more of the moment would help.")
+                        .font(BarklyFont.footnote)
+                        .foregroundStyle(BarklyColor.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(BarklySpacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(BarklyColor.cosmicOrangeSoft, in: RoundedRectangle(cornerRadius: BarklyRadius.small, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private var secondarySection: some View {
+        if !analysis.secondaryBehaviors.isEmpty {
+            VStack(alignment: .leading, spacing: BarklySpacing.md) {
+                SectionHeader(title: "Also read as")
+                Text(analysis.secondaryBehaviors.map(\.shortName).joined(separator: " · "))
+                    .font(BarklyFont.body)
+                    .foregroundStyle(BarklyColor.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func safetyNoteSection(_ note: String) -> some View {
+        VStack(alignment: .leading, spacing: BarklySpacing.sm) {
+            HStack(alignment: .top, spacing: BarklySpacing.sm) {
+                Image(systemName: "shield.lefthalf.filled")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(BarklyColor.tertiaryText)
+                    .padding(.top, 1)
+                Text(note)
+                    .font(BarklyFont.footnote)
+                    .foregroundStyle(BarklyColor.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(BarklySpacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(BarklyColor.surface, in: RoundedRectangle(cornerRadius: BarklyRadius.small, style: .continuous))
+        }
+    }
+
+    private var feedbackSection: some View {
+        VStack(alignment: .leading, spacing: BarklySpacing.md) {
+            SectionHeader(
+                title: "Help BARKLY learn",
+                subtitle: "Your feedback improves future estimates"
+            )
+
+            if feedbackSubmitted {
+                Label("Thanks — your feedback was recorded.", systemImage: "checkmark.circle.fill")
+                    .font(BarklyFont.body)
+                    .foregroundStyle(BarklyColor.primaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if needsCorrection {
+                correctionForm
+            } else {
+                HStack(spacing: BarklySpacing.md) {
+                    feedbackButton(
+                        title: "Looks right",
+                        icon: "hand.thumbsup.fill",
+                        color: BarklyColor.cosmicOrangeDeep
+                    ) {
+                        submit(verdict: .confirmed, corrected: nil)
+                    }
+                    feedbackButton(
+                        title: "Was off",
+                        icon: "hand.thumbsdown.fill",
+                        color: BarklyColor.error
+                    ) {
+                        needsCorrection = true
+                    }
+                }
+            }
+        }
+    }
+
+    private var correctionForm: some View {
+        VStack(alignment: .leading, spacing: BarklySpacing.md) {
+            Text("What was it really?")
+                .font(BarklyFont.label)
+                .foregroundStyle(BarklyColor.primaryText)
+            Menu {
+                ForEach(BehaviorState.allCases, id: \.self) { state in
+                    Button(state.shortName) {
+                        correction = state
+                    }
+                }
+            } label: {
+                HStack {
+                    Text(correction?.shortName ?? "Choose a behavior")
+                        .foregroundStyle(correction == nil ? BarklyColor.secondaryText : BarklyColor.primaryText)
+                    Spacer()
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(BarklyColor.tertiaryText)
+                }
+                .font(BarklyFont.body)
+                .padding(BarklySpacing.md)
+                .background(BarklyColor.surface, in: RoundedRectangle(cornerRadius: BarklyRadius.small, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: BarklyRadius.small, style: .continuous)
+                        .strokeBorder(BarklyColor.divider.opacity(0.7), lineWidth: 1)
+                )
+            }
+            HStack(spacing: BarklySpacing.md) {
+                BarklyButton(title: "Submit correction", icon: "checkmark", style: .tinted) {
+                    guard let correction else { return }
+                    submit(verdict: .corrected, corrected: correction)
+                }
+                Button("Cancel") {
+                    needsCorrection = false
+                    correction = nil
+                }
+                .font(BarklyFont.label)
+                .foregroundStyle(BarklyColor.secondaryText)
+            }
+        }
+    }
+
+    private func feedbackButton(title: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.light()
+            action()
+        } label: {
+            HStack(spacing: BarklySpacing.sm) {
+                Image(systemName: icon)
+                Text(title)
+                    .font(BarklyFont.label)
+            }
+            .foregroundStyle(color)
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .background(BarklyColor.surface, in: Capsule())
+            .overlay(
+                Capsule().strokeBorder(BarklyColor.divider.opacity(0.7), lineWidth: 1)
+            )
+            .contentShape(Capsule())
+        }
+        .buttonStyle(BarklyRowPressStyle())
+    }
+
+    private func submit(verdict: FeedbackVerdict, corrected: BehaviorState?) {
+        guard let repository = app.feedbackRepository else { return }
+        Task {
+            try? await repository.submit(
+                for: analysis.id,
+                verdict: verdict,
+                correctedBehavior: corrected,
+                comment: nil
+            )
+            feedbackSubmitted = true
+        }
     }
 
     private var actions: some View {
