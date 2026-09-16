@@ -22,10 +22,10 @@ pytestmark = pytest.mark.asyncio
 
 def _artifacts_present() -> bool:
     settings = get_settings()
-    root = Path(__file__).resolve().parents[4]
+    root = Path(__file__).resolve().parents[2]
     return (
-        (root / settings.ai_audio_model_path).is_file()
-        and (root / settings.ai_vision_model_path).is_file()
+        (root / settings.ai_audio_model_path.lstrip("/")).is_file()
+        and (root / settings.ai_vision_model_path.lstrip("/")).is_file()
     )
 
 
