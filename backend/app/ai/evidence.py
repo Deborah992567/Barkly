@@ -113,7 +113,9 @@ _AUDIO_OBSERVATION_TEMPLATES: dict[str, str] = {
     "alerting_to_sounds": "Audio patterns consistent with a dog alerting to sounds were detected.",
     "begging_for_food": "Audio patterns consistent with begging for food were detected.",
     "playing_with_human": "Audio patterns consistent with playing with a person were detected.",
-    "playing_with_other_animals": "Audio patterns consistent with playing with other animals were detected.",
+    "playing_with_other_animals": (
+        "Audio patterns consistent with playing with other animals were detected."
+    ),
     "playing_with_toy": "Audio patterns consistent with playing with a toy were detected.",
     "rest": "Audio patterns consistent with rest were detected.",
     "seeking_attention": "Audio patterns consistent with attention-seeking were detected.",

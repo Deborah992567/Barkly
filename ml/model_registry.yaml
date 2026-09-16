@@ -100,7 +100,7 @@ models:
       interpretation_policy: observable_pose_only
     known_limitations:
       - Labels are body poses only; they are NOT behavioral or emotional states
-      - "undefined" class covers 30% of the dataset
+      - The 'undefined' class covers 30% of the dataset
       - No dog identity, so near-duplicate leakage across breeds is possible
     latency_measured:
       per_image_seconds_approx: 0.5

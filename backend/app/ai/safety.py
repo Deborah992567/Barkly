@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.domain.enums import BehaviorState, BehavioralHints
+from app.domain.enums import BehavioralHints, BehaviorState
 
 
 @dataclass(frozen=True)

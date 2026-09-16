@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from app.ai.evidence import EvidenceBundle
 from app.ai.fusion.rules import RULES, InterpretationRule
 from app.core.config import get_settings
-from app.domain.enums import BehaviorState, BehavioralHints, ObservationCategory
+from app.domain.enums import BehavioralHints, BehaviorState, ObservationCategory
 from app.domain.value_objects import Observation
 
 MAX_SUPPORT_BONUS = 0.12
@@ -204,7 +204,8 @@ class FusionEngine:
             hint = _AUDIO_HINT_BY_LABEL.get(evidence.audio.label)
             if hint is not None:
                 hints.append(Hint(hint, "audio", evidence.audio.confidence))
-        if evidence.visual.available and not evidence.visual.is_unknown and evidence.visual.aggregated_pose:
+        known = evidence.visual.available and not evidence.visual.is_unknown
+        if known and evidence.visual.aggregated_pose:
             hint = _POSE_HINT_BY_LABEL.get(evidence.visual.aggregated_pose)
             if hint is not None:
                 hints.append(Hint(hint, "vision", evidence.visual.confidence))
