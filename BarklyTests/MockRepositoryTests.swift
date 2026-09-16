@@ -28,6 +28,20 @@ final class MockRepositoryTests: XCTestCase {
         XCTAssertEqual(fetched?.name, "Maxwell")
     }
 
+    func testMockDogRepositoryCreatesDog() async throws {
+        let repository = MockDogRepository(seedDogs: [])
+        let created = try await repository.createDog(
+            name: "Rex",
+            breed: "Labrador",
+            dateOfBirth: Date(),
+            notes: "E2E dog"
+        )
+        XCTAssertEqual(created.name, "Rex")
+        XCTAssertEqual(created.breed, "Labrador")
+        let dogs = try await repository.fetchDogs()
+        XCTAssertEqual(dogs.map(\.id), [created.id])
+    }
+
     func testMockAnalysisIsDeterministicForEachInput() async throws {
         let repository = MockAnalysisRepository(latency: 0)
         let expected: [(AnalysisInputType, BehaviorState, Float)] = [

@@ -18,6 +18,12 @@ final class MockDogRepository: DogRepository {
     func updateDog(_ dog: Dog) async throws {
         await store.update(dog)
     }
+
+    func createDog(name: String, breed: String?, dateOfBirth: Date, notes: String?) async throws -> Dog {
+        let dog = Dog(name: name, breed: breed ?? "", dateOfBirth: dateOfBirth, notes: notes)
+        await store.add(dog)
+        return dog
+    }
 }
 
 actor InMemoryDogStore {
@@ -29,6 +35,10 @@ actor InMemoryDogStore {
 
     func load() -> [Dog] {
         dogs
+    }
+
+    func add(_ dog: Dog) {
+        dogs.append(dog)
     }
 
     func update(_ dog: Dog) {
