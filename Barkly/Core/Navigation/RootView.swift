@@ -6,7 +6,9 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if app.hasCompletedOnboarding {
+            if app.usesBackend && !app.authService.isAuthenticated {
+                AuthView()
+            } else if app.hasCompletedOnboarding {
                 AppTabView()
             } else {
                 WelcomeView()
@@ -14,6 +16,7 @@ struct RootView: View {
         }
         .transition(.opacity.combined(with: .scale(scale: 0.985)))
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.32), value: app.hasCompletedOnboarding)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.32), value: app.authService.isAuthenticated)
         .preferredColorScheme(app.appearanceMode.colorScheme)
     }
 }

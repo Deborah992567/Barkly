@@ -11,7 +11,7 @@ final class AppContainerTests: XCTestCase {
     }
 
     private func makeContainer() -> AppContainer {
-        AppContainer()
+        AppContainer(dependencies: .demo)
     }
 
     func testSelectsFirstDogByDefault() {

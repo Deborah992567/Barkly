@@ -15,9 +15,13 @@ final class AnalysisFlowControllerTests: XCTestCase {
             analysisRepository: MockAnalysisRepository(latency: 0),
             historyRepository: historyRepository,
             insightsRepository: MockInsightsRepository(history: historyRepository),
+            feedbackRepository: nil,
             permissionService: permissions,
+            audioRecorder: MockAudioRecorder(),
+            authService: AuthenticationService(demo: ()),
             owner: MockSeeds.owner,
-            initialDogs: MockSeeds.demoDogs
+            initialDogs: MockSeeds.demoDogs,
+            usesBackend: false
         ))
     }
 
@@ -73,9 +77,13 @@ final class AnalysisFlowControllerTests: XCTestCase {
             analysisRepository: MockAnalysisRepository(latency: 0),
             historyRepository: historyRepository,
             insightsRepository: MockInsightsRepository(history: historyRepository),
+            feedbackRepository: nil,
             permissionService: MockPermissionService(mode: .granted),
+            audioRecorder: MockAudioRecorder(),
+            authService: AuthenticationService(demo: ()),
             owner: MockSeeds.owner,
-            initialDogs: []
+            initialDogs: [],
+            usesBackend: false
         ))
         let controller = AnalysisFlowController(container: container)
         await controller.begin(route: .record)

@@ -56,4 +56,31 @@ enum BehaviorState: String, Codable, CaseIterable, Sendable {
         case .unknown: "The available signals weren't clear enough to estimate. Try capturing more of the moment next time."
         }
     }
+
+    /// Backend `BehaviorState` wire value.
+    var apiValue: String {
+        switch self {
+        case .calm: "RELAXED"
+        case .playful: "PLAYFUL"
+        case .excited: "EXCITED"
+        case .alert: "ALERT"
+        case .curious: "CURIOUS"
+        case .attentionSeeking: "ATTENTION_SEEKING"
+        case .anxious, .fearful, .potentiallyThreatening, .unknown: "UNKNOWN"
+        }
+    }
+
+    /// Reverse mapping from the backend's wire value. Backend-only states that
+    /// BARKLY never emits as a primary estimate fall back to `.unknown`.
+    init(apiValue raw: String) {
+        switch raw {
+        case "RELAXED": self = .calm
+        case "PLAYFUL": self = .playful
+        case "EXCITED": self = .excited
+        case "ALERT": self = .alert
+        case "CURIOUS": self = .curious
+        case "ATTENTION_SEEKING": self = .attentionSeeking
+        default: self = .unknown
+        }
+    }
 }

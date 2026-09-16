@@ -11,12 +11,16 @@ struct BarklyButton: View {
     let title: String
     var icon: String? = nil
     var style: Style = .primary
+    var isLoading: Bool = false
     var action: () -> Void
 
     var body: some View {
         Button(action: perform) {
             HStack(spacing: BarklySpacing.sm) {
-                if let icon {
+                if isLoading {
+                    ProgressView()
+                        .tint(foreground)
+                } else if let icon {
                     Image(systemName: icon)
                         .font(.system(size: 17, weight: .semibold))
                 }
@@ -35,8 +39,10 @@ struct BarklyButton: View {
                 }
             }
             .contentShape(Capsule())
+            .opacity(isLoading ? 0.7 : 1)
         }
         .buttonStyle(BarklyButtonPressStyle())
+        .disabled(isLoading)
         .accessibilityLabel(title)
     }
 

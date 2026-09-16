@@ -49,6 +49,12 @@ enum ErrorMapper {
                     message: "BARKLY needs access to this media. You can allow it in Settings.",
                     recovery: .openSettings
                 )
+            case .unauthorized:
+                return AppFailure(
+                    title: "Sign in required",
+                    message: "Your session has expired. Sign in again to continue.",
+                    recovery: .retry
+                )
             }
         }
         return AppFailure(

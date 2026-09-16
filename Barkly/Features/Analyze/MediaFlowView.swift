@@ -15,6 +15,7 @@ struct MediaFlowView: View {
     @State private var controller: AnalysisFlowController?
     @State private var selection: PhotosPickerItem?
     @State private var pickedImage: UIImage?
+    @State private var pickedImageURL: URL?
     @State private var pickedMovie: MovieFile?
     @State private var isLoading = false
     @State private var analyzeError: AnalysisFlowController.AnalysisError?
@@ -238,16 +239,33 @@ struct MediaFlowView: View {
     private func analyze() {
         guard let controller else { return }
         let inputType: AnalysisInputType
-        if pickedMovie != nil {
+        let mediaURLs: [URL]
+        if let pickedMovie {
             inputType = .video
+            mediaURLs = [pickedMovie.url]
         } else if pickedImage != nil {
             inputType = .photo
+            mediaURLs = pickedImageURL.map { [$0] } ?? []
         } else {
             inputType = mode == .video ? .video : .photo
+            mediaURLs = []
         }
         Haptics.medium()
         Task {
-            await controller.submit(inputType: inputType)
+            await controller.submit(inputType: inputType, mediaURLs: mediaURLs)
+        }
+    }
+
+    private func stash(image: UIImage) -> URL? {
+        guard let data = image.jpegData(compressionQuality: 0.92) else { return nil }
+        let url = URL.temporaryDirectory
+            .appendingPathComponent("barkly-photo-\(UUID().uuidString)")
+            .appendingPathExtension("jpg")
+        do {
+            try data.write(to: url)
+            return url
+        } catch {
+            return nil
         }
     }
 
@@ -259,12 +277,14 @@ struct MediaFlowView: View {
             if let movie: MovieFile = try? await item.loadTransferable(type: MovieFile.self) {
                 pickedMovie = movie
                 pickedImage = nil
+                pickedImageURL = nil
                 return
             }
             if let data = try? await item.loadTransferable(type: Data.self),
                let image = UIImage(data: data) {
                 pickedImage = image
                 pickedMovie = nil
+                pickedImageURL = stash(image: image)
             }
         }
     }

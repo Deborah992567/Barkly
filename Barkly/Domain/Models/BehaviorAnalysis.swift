@@ -10,6 +10,11 @@ struct BehaviorAnalysis: Identifiable, Hashable, Codable, Sendable {
     let confidence: Float
     let observations: [String]
     let explanation: String
+    let secondaryBehaviors: [BehaviorState]
+    let safetyNote: String?
+    let modelName: String?
+    let modelVersion: String?
+    let isInsufficientEvidence: Bool
 
     init(
         id: UUID = UUID(),
@@ -20,7 +25,12 @@ struct BehaviorAnalysis: Identifiable, Hashable, Codable, Sendable {
         estimatedState: BehaviorState,
         confidence: Float,
         observations: [String],
-        explanation: String
+        explanation: String,
+        secondaryBehaviors: [BehaviorState] = [],
+        safetyNote: String? = nil,
+        modelName: String? = nil,
+        modelVersion: String? = nil,
+        isInsufficientEvidence: Bool = false
     ) {
         self.id = id
         self.dogID = dogID
@@ -31,6 +41,11 @@ struct BehaviorAnalysis: Identifiable, Hashable, Codable, Sendable {
         self.confidence = confidence
         self.observations = observations
         self.explanation = explanation
+        self.secondaryBehaviors = secondaryBehaviors
+        self.safetyNote = safetyNote
+        self.modelName = modelName
+        self.modelVersion = modelVersion
+        self.isInsufficientEvidence = isInsufficientEvidence
     }
 
     var confidencePercent: Int {

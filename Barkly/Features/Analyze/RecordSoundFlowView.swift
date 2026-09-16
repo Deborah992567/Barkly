@@ -52,6 +52,9 @@ struct RecordSoundFlowView: View {
                     if startDate == nil {
                         startDate = Date()
                     }
+                    Task {
+                        await controller.startRecording()
+                    }
                 }
         case .processing:
             AnalysisProcessingView(caption: "BARKLY is reading the signals")

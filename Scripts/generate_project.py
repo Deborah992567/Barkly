@@ -103,6 +103,7 @@ def app_configs(mode):
         "CURRENT_PROJECT_VERSION": "1",
         "ENABLE_PREVIEWS": "YES",
         "GENERATE_INFOPLIST_FILE": "YES",
+        "INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking": "YES",
         "INFOPLIST_KEY_NSMicrophoneUsageDescription": MIC_DESC,
         "INFOPLIST_KEY_NSPhotoLibraryUsageDescription": PHOTO_DESC,
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation": "YES",

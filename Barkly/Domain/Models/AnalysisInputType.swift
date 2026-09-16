@@ -32,4 +32,25 @@ enum AnalysisInputType: String, Codable, CaseIterable, Sendable {
         case .behavior: "eye.fill"
         }
     }
+
+    /// Backend `AnalysisInputType` wire value.
+    var apiValue: String {
+        switch self {
+        case .audio: "AUDIO"
+        case .video: "VIDEO"
+        case .photo: "IMAGE"
+        case .behavior: "BEHAVIOR"
+        }
+    }
+
+    /// Reverse mapping from the backend's wire value.
+    init?(apiValue raw: String) {
+        switch raw {
+        case "AUDIO": self = .audio
+        case "VIDEO": self = .video
+        case "IMAGE": self = .photo
+        case "BEHAVIOR": self = .behavior
+        default: return nil
+        }
+    }
 }

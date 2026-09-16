@@ -27,11 +27,15 @@ final class AnalysisFlowController {
     }
 
     private let container: AppContainer
+    private let recorder: any AudioRecording
     private(set) var phase: Phase = .idle
     private(set) var inputType: AnalysisInputType?
+    private(set) var recordedURL: URL?
+    var pendingContext: AnalysisContextInput? = nil
 
     init(container: AppContainer) {
         self.container = container
+        self.recorder = container.audioRecorder
     }
 
     var recordingStarts: Bool {
@@ -71,11 +75,24 @@ final class AnalysisFlowController {
         phase = .idle
     }
 
+    func startRecording() async {
+        if await recorder.isRecording {
+            return
+        }
+        recordedURL = nil
+        do {
+            try await recorder.start()
+            phase = .recording
+        } catch {
+            phase = .failed(recorderError(error))
+        }
+    }
+
     private func requestMicrophone() async {
         let status = await container.permissionService.status(for: .microphone)
         switch status {
         case .granted:
-            phase = .recording
+            await startRecording()
         case .notDetermined:
             phase = .requestingPermission
         case .denied, .restricted, .unavailable:
@@ -87,7 +104,7 @@ final class AnalysisFlowController {
         let status = await container.permissionService.requestAccess(for: .microphone)
         switch status {
         case .granted:
-            phase = .recording
+            await startRecording()
         case .denied, .restricted, .unavailable:
             phase = .failed(micDeniedError)
         case .notDetermined:
@@ -104,22 +121,51 @@ final class AnalysisFlowController {
         )
     }
 
-    func submitRecording(duration: TimeInterval) async {
-        await submit(
-            inputType: .audio,
-            vocalizationType: .bark,
-            duration: duration
+    private func recorderError(_ error: Error) -> AnalysisError {
+        AnalysisError(
+            title: "Couldn't start recording",
+            message: (error as? LocalizedError)?.errorDescription ?? "The microphone couldn't start.",
+            hint: "If another app is using the microphone, close it and try again.",
+            recovery: .retry
         )
     }
 
+    /// Ends the on-device recording and submits the captured audio.
+    func submitRecording(duration: TimeInterval) async {
+        do {
+            let url = try await recorder.stop()
+            recordedURL = url
+            await submit(
+                inputType: .audio,
+                mediaURLs: [url],
+                duration: duration,
+                context: pendingContext
+            )
+        } catch {
+            phase = .failed(recorderError(error))
+        }
+    }
+
+    /// Submits an analysis for media already captured (video or photo files).
+    func submit(inputType: AnalysisInputType, mediaURLs: [URL], duration: TimeInterval? = nil) async {
+        await submit(
+            inputType: inputType,
+            mediaURLs: mediaURLs,
+            duration: duration,
+            context: pendingContext
+        )
+    }
+
+    /// Middleware path used by callers that captured in-memory media only.
     func submit(inputType: AnalysisInputType) async {
-        await submit(inputType: inputType, vocalizationType: nil, duration: nil)
+        await submit(inputType: inputType, mediaURLs: [], duration: nil)
     }
 
     private func submit(
         inputType: AnalysisInputType,
-        vocalizationType: VocalizationType?,
-        duration: TimeInterval?
+        mediaURLs: [URL] = [],
+        duration: TimeInterval? = nil,
+        context: AnalysisContextInput?
     ) async {
         guard let dogID = container.selectedDogID else {
             phase = .failed(AnalysisError(
@@ -132,12 +178,21 @@ final class AnalysisFlowController {
 
         phase = .processing
         do {
-            let analysis = try await container.analysisRepository.requestAnalysis(
-                for: dogID,
-                inputType: inputType,
-                vocalizationType: vocalizationType,
-                duration: duration
-            )
+            let analysis: BehaviorAnalysis
+            if inputType == .behavior {
+                analysis = try await container.analysisRepository.requestBehaviorAnalysis(
+                    for: dogID,
+                    context: context
+                )
+            } else {
+                analysis = try await container.analysisRepository.requestAnalysis(
+                    for: dogID,
+                    inputType: inputType,
+                    mediaURLs: mediaURLs,
+                    duration: duration,
+                    context: context
+                )
+            }
             try await container.historyRepository.record(analysis)
             phase = .ready(analysis)
         } catch let error as AppRepositoryError {
@@ -177,6 +232,12 @@ final class AnalysisFlowController {
                 title: "Access needed",
                 message: "BARKLY needs access to this media to analyze it. You can allow access in Settings.",
                 recovery: .openSettings
+            )
+        case .unauthorized:
+            AnalysisError(
+                title: "Session expired",
+                message: "Sign in again to keep using BARKLY.",
+                recovery: .retry
             )
         }
     }

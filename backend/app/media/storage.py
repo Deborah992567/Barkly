@@ -25,7 +25,7 @@ class StorageProvider(Protocol):
 
     def delete(self, reference: str) -> None: ...
 
-    def resolve(self, reference: str) -> "Path | None":
+    def resolve(self, reference: str) -> Path | None:
         """Return a readable local path for a stored reference, or None.
 
         Used by inference providers to feed stored media into model
