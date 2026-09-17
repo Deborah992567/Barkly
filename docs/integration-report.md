@@ -97,3 +97,34 @@ xcodebuild -project Barkly.xcodeproj -scheme Barkly \
   interpretation, closing the loop.
 - Model lineage (provider, model names/versions, preprocessing + dataset + fusion
   versions) is persisted per analysis for auditability.
+
+## Phase 4.1: production polish and integration completion
+
+Live screens that previously leaned on demo data are now fully server-backed:
+
+- **Dogs**: create (`POST /dogs`) and edit (`PATCH /dogs/{id}`) from dedicated
+  iOS forms wired into Home's empty state, the dog switcher, and Profile. The
+  server-confirmed dog is stored and selected; failures surface inline.
+- **History**: `GET /history` drives a paged feed with pull-to-refresh,
+  incremental pagination, empty/error/offline states, and status-aware rows.
+  Rows open a result only when the server reports `COMPLETED`; queued, running,
+  failed, and cancelled runs show a status row instead.
+- **Insights**: `DerivedInsightsRepository` aggregates live history. Patterns
+  are computed only from completed analyses; `is_insufficient_data` gates
+  pattern claims below three usable interpretations, and trend copy hedges
+  explicitly ("tendencies in the moments captured, not a diagnosis").
+- **Feedback**: submission failures now surface inline with retry instead of a
+  false success toast.
+
+Mock/seed data is confined to `AppDependencies.demo`, previews, and tests; see
+`docs/mock-data-audit.md`. The shipped path only ever uses the live repositories.
+
+### Test status (end of Phase 4.1)
+
+- Backend pytest: 90 passed, ruff clean (unchanged in 4.1).
+- iOS XCTest: full suite green on the simulator, including new coverage for
+  `AnalysisStatus` lifecycle mapping, `AppContainer` add/update dog commands,
+  paged history (`HistoryPagerTests`), and insights aggregation
+  (`DerivedInsightsTests`).
+- Git: Phase 4.1 pushed incrementally to `origin/master` (each logical change
+  committed and pushed rather than one large dump).
