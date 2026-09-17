@@ -15,8 +15,9 @@ final class MockDogRepository: DogRepository {
         await store.load().first { $0.id == id }
     }
 
-    func updateDog(_ dog: Dog) async throws {
+    func updateDog(_ dog: Dog) async throws -> Dog {
         await store.update(dog)
+        return dog
     }
 
     func createDog(name: String, breed: String?, dateOfBirth: Date, notes: String?) async throws -> Dog {

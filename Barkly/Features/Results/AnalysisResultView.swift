@@ -8,6 +8,8 @@ struct AnalysisResultView: View {
 
     @Environment(AppContainer.self) private var app
     @State private var feedbackSubmitted = false
+    @State private var isSubmittingFeedback = false
+    @State private var feedbackError: AppFailure?
     @State private var needsCorrection = false
     @State private var correction: BehaviorState?
 
@@ -245,6 +247,34 @@ struct AnalysisResultView: View {
                     }
                 }
             }
+
+            if let feedbackError {
+                HStack(alignment: .top, spacing: BarklySpacing.md) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(BarklyColor.error)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: BarklySpacing.xs) {
+                        Text(feedbackError.message)
+                            .font(BarklyFont.caption)
+                            .foregroundStyle(BarklyColor.secondaryText)
+                        Button("Try Again") {
+                            Haptics.light()
+                            if needsCorrection {
+                                if let correction {
+                                    submit(verdict: .corrected, corrected: correction)
+                                }
+                            } else {
+                                submit(verdict: .confirmed, corrected: nil)
+                            }
+                        }
+                        .font(BarklyFont.label)
+                        .foregroundStyle(BarklyColor.cosmicOrangeDeep)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("feedback_error")
+            }
         }
     }
 
@@ -314,15 +344,24 @@ struct AnalysisResultView: View {
     }
 
     private func submit(verdict: FeedbackVerdict, corrected: BehaviorState?) {
-        guard let repository = app.feedbackRepository else { return }
+        guard let repository = app.feedbackRepository, !isSubmittingFeedback else { return }
+        isSubmittingFeedback = true
+        feedbackError = nil
         Task {
-            try? await repository.submit(
-                for: analysis.id,
-                verdict: verdict,
-                correctedBehavior: corrected,
-                comment: nil
-            )
-            feedbackSubmitted = true
+            do {
+                try await repository.submit(
+                    for: analysis.id,
+                    verdict: verdict,
+                    correctedBehavior: corrected,
+                    comment: nil
+                )
+                guard !Task.isCancelled else { return }
+                feedbackSubmitted = true
+            } catch {
+                guard !Task.isCancelled else { return }
+                feedbackError = ErrorMapper.failure(for: error)
+            }
+            isSubmittingFeedback = false
         }
     }
 

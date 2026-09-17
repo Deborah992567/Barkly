@@ -28,7 +28,7 @@ struct APIDogRepository: DogRepository {
         }
     }
 
-    func updateDog(_ dog: Dog) async throws {
+    func updateDog(_ dog: Dog) async throws -> Dog {
         let body = DogCreateDTO(
             name: dog.name,
             breed: dog.breed.isEmpty ? nil : dog.breed,
@@ -37,7 +37,8 @@ struct APIDogRepository: DogRepository {
             notes: dog.notes
         )
         do {
-            let _: DogDTO = try await client.patch("api/v1/dogs/\(dog.id.uuidString)", body: body)
+            let updated: DogDTO = try await client.patch("api/v1/dogs/\(dog.id.uuidString)", body: body)
+            return Dog(dto: updated)
         } catch let error as APIClientError {
             throw Self.map(error)
         }

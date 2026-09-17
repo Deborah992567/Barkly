@@ -3,19 +3,43 @@ import SwiftUI
 struct InsightsView: View {
     @Environment(AppContainer.self) private var app
     @State private var state: LoadState<InsightsSummary> = .loading
+    @State private var showAddDog = false
 
     var body: some View {
         NavigationStack {
             Group {
-                LoadableContainer(state: state, onRetry: { Task { await load() } }) { insights in
-                    populatedContent(insights)
+                if app.selectedDog == nil {
+                    EmptyStateView(
+                        icon: "pawprint",
+                        title: "Add a dog to see insights",
+                        message: "Insights are kept per dog, so add one to start spotting patterns.",
+                        actionTitle: "Add Your Dog",
+                        action: {
+                            Haptics.light()
+                            showAddDog = true
+                        }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .accessibilityIdentifier("insights_no_dog")
+                } else {
+                    LoadableContainer(state: state, onRetry: { Task { await load() } }) { insights in
+                        populatedContent(insights)
+                    }
                 }
             }
             .background(BarklyColor.background.ignoresSafeArea())
             .navigationTitle("Insights")
             .navigationBarTitleDisplayMode(.large)
+            .sheet(isPresented: $showAddDog) {
+                AddDogView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
         }
         .task { await load() }
+        .onChange(of: app.selectedDogID) { _, _ in
+            Task { await load() }
+        }
     }
 
     private func populatedContent(_ insights: InsightsSummary) -> some View {
@@ -38,6 +62,9 @@ struct InsightsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: BarklySpacing.sectionGap) {
                     heroCard(insights)
+                    if insights.isInsufficientData && insights.totalAnalyses > 0 {
+                        insufficientCard(insights)
+                    }
                     statsGrid(insights)
                     if !insights.stateDistribution.isEmpty {
                         distributionSection(
@@ -79,6 +106,30 @@ struct InsightsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .accessibilityIdentifier("insights_hero")
+    }
+
+    private func insufficientCard(_ insights: InsightsSummary) -> some View {
+        HStack(alignment: .top, spacing: BarklySpacing.md) {
+            Image(systemName: "hourglass")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(BarklyColor.warning)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: BarklySpacing.xs) {
+                Text("Not enough data yet")
+                    .font(BarklyFont.label)
+                    .foregroundStyle(BarklyColor.primaryText)
+                Text("\(insights.usableAnalyses) of \(InsightsSummary.minimumAnalysesForPatterns) completed analyses. The counts below are real, but they are too few to call a pattern.")
+                    .font(BarklyFont.caption)
+                    .foregroundStyle(BarklyColor.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(BarklySpacing.cardPadding)
+        .background(BarklyColor.cosmicOrangeSoft, in: RoundedRectangle(cornerRadius: BarklyRadius.card, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("insights_insufficient")
     }
 
     private func statsGrid(_ insights: InsightsSummary) -> some View {
@@ -99,8 +150,8 @@ struct InsightsView: View {
                 value: insights.mostActiveTime?.displayName ?? "—"
             )
             InsightStatCard(
-                label: "Analyses",
-                value: "\(insights.totalAnalyses)"
+                label: "Completed analyses",
+                value: "\(insights.usableAnalyses)"
             )
         }
     }
@@ -129,10 +180,10 @@ struct InsightsView: View {
     }
 
     private func load() async {
+        guard let dog = app.selectedDog else { return }
         state = .loading
         do {
-            let dog = app.selectedDog
-            let insights = try await app.insightsRepository.fetchInsights(for: dog?.id ?? UUID())
+            let insights = try await app.insightsRepository.fetchInsights(for: dog.id)
             state = .loaded(insights)
         } catch {
             let failure = ErrorMapper.failure(for: error)

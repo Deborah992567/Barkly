@@ -100,6 +100,31 @@ final class MockRepositoryTests: XCTestCase {
         XCTAssertEqual(countAfterRecord, 1)
     }
 
+    func testDefaultHistoryPaginationWalksAllPages() async throws {
+        let repository = MockHistoryRepository(latency: 0)
+        let first = try await repository.fetchHistoryPage(dogID: nil, behavior: nil, page: 1, pageSize: 2)
+        XCTAssertEqual(first.items.count, 2)
+        XCTAssertEqual(first.total, 6)
+        XCTAssertTrue(first.hasNext)
+        XCTAssertEqual(first.page, 1)
+
+        let last = try await repository.fetchHistoryPage(dogID: nil, behavior: nil, page: 3, pageSize: 2)
+        XCTAssertEqual(last.items.count, 2)
+        XCTAssertFalse(last.hasNext)
+
+        let beyond = try await repository.fetchHistoryPage(dogID: nil, behavior: nil, page: 4, pageSize: 2)
+        XCTAssertTrue(beyond.items.isEmpty)
+        XCTAssertFalse(beyond.hasNext)
+    }
+
+    func testDefaultHistoryPaginationFiltersByDog() async throws {
+        let repository = MockHistoryRepository(latency: 0)
+        let page = try await repository.fetchHistoryPage(dogID: MockSeeds.max.id, behavior: nil, page: 1, pageSize: 2)
+        XCTAssertEqual(page.total, 3)
+        XCTAssertTrue(page.items.allSatisfy { $0.dogID == MockSeeds.max.id })
+        XCTAssertTrue(page.hasNext)
+    }
+
     func testMockInsightsReportsSeededDistribution() async throws {
         let history = MockHistoryRepository(latency: 0)
         let insights = try await MockInsightsRepository(history: history).fetchInsights(for: MockSeeds.max.id)

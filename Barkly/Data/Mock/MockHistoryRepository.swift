@@ -23,6 +23,29 @@ final class MockHistoryRepository: HistoryRepository {
     func record(_ analysis: BehaviorAnalysis) async throws {
         await store.append(analysis)
     }
+
+    func fetchHistoryPage(
+        dogID: UUID? = nil,
+        behavior: BehaviorState? = nil,
+        page: Int = 1,
+        pageSize: Int? = nil
+    ) async throws -> HistoryPage {
+        let size = max(1, pageSize ?? 20)
+        let filtered = try await fetchAllAnalyses().filter { analysis in
+            if let dogID, analysis.dogID != dogID { return false }
+            if let behavior, analysis.estimatedState != behavior { return false }
+            return true
+        }
+        let start = (max(1, page) - 1) * size
+        let slice = Array(filtered.dropFirst(start).prefix(size))
+        return HistoryPage(
+            items: slice,
+            page: page,
+            pageSize: size,
+            total: filtered.count,
+            hasNext: (start + slice.count) < filtered.count
+        )
+    }
 }
 
 actor InMemoryAnalysisStore {
