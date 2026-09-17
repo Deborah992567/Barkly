@@ -154,9 +154,26 @@ final class AppContainer {
         selectedDogID = id
     }
 
-    func updateDog(_ dog: Dog) async {
-        dogs = dogs.map { $0.id == dog.id ? dog : $0 }
-        try? await dogRepository.updateDog(dog)
+    @discardableResult
+    func addDog(name: String, breed: String?, dateOfBirth: Date, notes: String?) async throws -> Dog {
+        let created = try await dogRepository.createDog(
+            name: name,
+            breed: breed?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? breed : nil,
+            dateOfBirth: dateOfBirth,
+            notes: notes?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? notes : nil
+        )
+        if !dogs.contains(where: { $0.id == created.id }) {
+            dogs.append(created)
+        }
+        selectedDogID = created.id
+        return created
+    }
+
+    @discardableResult
+    func updateDog(_ dog: Dog) async throws -> Dog {
+        let updated = try await dogRepository.updateDog(dog)
+        dogs = dogs.map { $0.id == updated.id ? updated : $0 }
+        return updated
     }
 
     /// Refreshes the dog list from the backend after a fresh sign-in.

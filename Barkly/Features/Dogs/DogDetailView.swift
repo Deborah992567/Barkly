@@ -2,13 +2,16 @@ import SwiftUI
 
 struct DogDetailView: View {
     @Environment(AppContainer.self) private var app
+    @Environment(\.dismiss) private var dismiss
 
     private let dog: Dog
 
     @State private var draftName: String
     @State private var draftBreed: String
     @State private var draftNotes: String
+    @State private var isSaving = false
     @State private var saved = false
+    @State private var saveError: String?
 
     init(dog: Dog) {
         self.dog = dog
@@ -23,7 +26,7 @@ struct DogDetailView: View {
                 headerCard
 
                 VStack(alignment: .leading, spacing: BarklySpacing.md) {
-                    SectionHeader(title: "Details", subtitle: "Profile changes stay on this device for now.")
+                    SectionHeader(title: "Details", subtitle: "Changes sync to \(app.owner.name.split(separator: " ").first ?? "your") BARKLY account.")
 
                     VStack(spacing: 0) {
                         detailField(title: "Name", text: $draftName, prompt: "Dog's name")
@@ -38,17 +41,27 @@ struct DogDetailView: View {
                         RoundedRectangle(cornerRadius: BarklyRadius.card, style: .continuous)
                             .strokeBorder(BarklyColor.divider.opacity(0.6), lineWidth: 1)
                     )
+
+                    if let saveError {
+                        Label(saveError, systemImage: "exclamationmark.triangle.fill")
+                            .font(BarklyFont.caption)
+                            .foregroundStyle(BarklyColor.error)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityIdentifier("dog_edit_error")
+                    }
                 }
 
-                BarklyButton(title: "Save Changes") {
+                BarklyButton(title: "Save Changes", icon: "checkmark", isLoading: isSaving) {
                     save()
                 }
+                .accessibilityIdentifier("dog_edit_save")
 
                 if saved {
-                    Text("Saved")
-                        .font(BarklyFont.label)
-                        .foregroundStyle(BarklyColor.success)
+                    Label("Changes saved.", systemImage: "checkmark.circle.fill")
+                        .font(BarklyFont.body)
+                        .foregroundStyle(BarklyColor.secondaryText)
                         .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("dog_edit_saved")
                 }
             }
             .padding(.horizontal, BarklySpacing.pagePadding)
@@ -58,6 +71,7 @@ struct DogDetailView: View {
         .background(BarklyColor.background.ignoresSafeArea())
         .navigationTitle(dog.name)
         .navigationBarTitleDisplayMode(.inline)
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var headerCard: some View {
@@ -68,7 +82,7 @@ struct DogDetailView: View {
                     Text(dog.name)
                         .font(BarklyFont.displayHeading)
                         .foregroundStyle(BarklyColor.primaryText)
-                    Text("\(dog.breed) \u{00B7} \(dog.ageDescription)")
+                    Text("\(dog.breed.isEmpty ? "No breed set" : dog.breed) \u{00B7} \(dog.ageDescription)")
                         .font(BarklyFont.subheadline)
                         .foregroundStyle(BarklyColor.secondaryText)
                 }
@@ -87,22 +101,40 @@ struct DogDetailView: View {
                 .font(BarklyFont.body)
                 .foregroundStyle(BarklyColor.primaryText)
                 .textInputAutocapitalization(.words)
+                .accessibilityLabel(title)
         }
         .padding(.vertical, BarklySpacing.md)
     }
 
     private func save() {
-        guard !draftName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        var updated = dog
-        updated.name = draftName.trimmingCharacters(in: .whitespaces)
-        updated.breed = draftBreed.trimmingCharacters(in: .whitespaces)
-        updated.notes = draftNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : draftNotes
-        Haptics.success()
-        Task {
-            await app.updateDog(updated)
+        let trimmedName = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            saveError = "Give your dog a name before saving."
+            return
         }
-        withAnimation(.easeOut(duration: 0.2)) {
-            saved = true
+        saveError = nil
+        saved = false
+        isSaving = true
+
+        var updated = dog
+        updated.name = trimmedName
+        updated.breed = draftBreed.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.notes = draftNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : draftNotes
+
+        Task {
+            defer { isSaving = false }
+            do {
+                _ = try await app.updateDog(updated)
+                Haptics.success()
+                withAnimation(.easeOut(duration: 0.2)) {
+                    saved = true
+                }
+            } catch {
+                let failure = ErrorMapper.failure(for: error)
+                saveError = ErrorMapper.isOffline(error)
+                    ? "You're offline. Your changes weren't saved — check your connection and try again."
+                    : failure.message
+            }
         }
     }
 }
@@ -111,5 +143,5 @@ struct DogDetailView: View {
     NavigationStack {
         DogDetailView(dog: MockSeeds.max)
     }
-    .environment(AppContainer())
+    .environment(AppContainer(dependencies: .demo))
 }
