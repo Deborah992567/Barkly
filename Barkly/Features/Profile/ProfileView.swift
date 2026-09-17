@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProfileView: View {
     @Environment(AppContainer.self) private var app
+    @State private var showAddDog = false
 
     private let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
 
@@ -59,31 +60,62 @@ struct ProfileView: View {
     private var dogsSection: some View {
         VStack(alignment: .leading, spacing: BarklySpacing.md) {
             SectionHeader(title: "Your dogs")
-            VStack(spacing: 2) {
-                ForEach(app.dogs) { dog in
-                    NavigationLink(value: dog) {
+            if app.dogs.isEmpty {
+                EmptyStateView(
+                    icon: "pawprint",
+                    title: "No dogs added yet",
+                    message: "Add a dog to get started with your first analysis.",
+                    actionTitle: "Add Your Dog",
+                    action: {
+                        Haptics.light()
+                        showAddDog = true
+                    }
+                )
+            } else {
+                VStack(spacing: 2) {
+                    ForEach(app.dogs) { dog in
+                        NavigationLink(value: dog) {
+                            SettingsRow(
+                                icon: "pawprint.fill",
+                                tint: BarklyColor.cosmicOrange,
+                                title: dog.name,
+                                subtitle: "\(dog.breed.isEmpty ? "No breed set" : dog.breed) \u{00B7} \(dog.ageDescription)"
+                            )
+                        }
+                        .buttonStyle(SettingsNavLinkStyle())
+                        if dog != app.dogs.last {
+                            Divider().overlay(BarklyColor.divider)
+                        }
+                    }
+                    Divider().overlay(BarklyColor.divider)
+                    Button {
+                        Haptics.light()
+                        showAddDog = true
+                    } label: {
                         SettingsRow(
-                            icon: "pawprint.fill",
+                            icon: "plus",
                             tint: BarklyColor.cosmicOrange,
-                            title: dog.name,
-                            subtitle: "\(dog.breed) \u{00B7} \(dog.ageDescription)"
+                            title: "Add a dog",
+                            subtitle: "Keep signals separate per dog"
                         )
                     }
                     .buttonStyle(SettingsNavLinkStyle())
-                    if dog != app.dogs.last {
-                        Divider().overlay(BarklyColor.divider)
-                    }
                 }
+                .padding(.horizontal, BarklySpacing.md)
+                .background(BarklyColor.elevatedSurface, in: RoundedRectangle(cornerRadius: BarklyRadius.card, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: BarklyRadius.card, style: .continuous)
+                        .strokeBorder(BarklyColor.divider.opacity(0.6), lineWidth: 1)
+                )
             }
-            .padding(.horizontal, BarklySpacing.md)
-            .background(BarklyColor.elevatedSurface, in: RoundedRectangle(cornerRadius: BarklyRadius.card, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: BarklyRadius.card, style: .continuous)
-                    .strokeBorder(BarklyColor.divider.opacity(0.6), lineWidth: 1)
-            )
         }
         .navigationDestination(for: Dog.self) { dog in
             DogDetailView(dog: dog)
+        }
+        .sheet(isPresented: $showAddDog) {
+            AddDogView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
     }
 

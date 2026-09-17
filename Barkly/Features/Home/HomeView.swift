@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @Environment(AppContainer.self) private var app
     @State private var showDogSwitcher = false
+    @State private var showAddDog = false
 
     private var dog: Dog? { app.selectedDog }
 
@@ -18,7 +19,12 @@ struct HomeView: View {
                         EmptyStateView(
                             icon: "pawprint",
                             title: "No dog added yet",
-                            message: "Add a dog to start understanding their signals."
+                            message: "Add a dog to start understanding their signals.",
+                            actionTitle: "Add Your Dog",
+                            action: {
+                                Haptics.light()
+                                showAddDog = true
+                            }
                         )
                         .frame(maxWidth: .infinity)
                         .padding(.top, BarklySpacing.xl)
@@ -34,6 +40,11 @@ struct HomeView: View {
             .sheet(isPresented: $showDogSwitcher) {
                 DogSelectorView()
                     .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showAddDog) {
+                AddDogView()
+                    .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }
         }
