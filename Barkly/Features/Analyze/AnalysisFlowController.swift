@@ -269,6 +269,12 @@ final class AnalysisFlowController {
                 message: "Sign in again to keep using BARKLY.",
                 recovery: .retry
             )
+        case .validation(let message):
+            AnalysisError(
+                title: "Couldn't start the analysis",
+                message: message,
+                recovery: .retry
+            )
         }
     }
 }

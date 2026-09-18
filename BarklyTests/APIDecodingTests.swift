@@ -51,6 +51,37 @@ final class APIDecodingTests: XCTestCase {
         XCTAssertEqual(dog.breed, "")
     }
 
+    func testDogDTODecodesPlainBirthDateString() throws {
+        // The backend serializes date_of_birth as yyyy-MM-dd (a plain date),
+        // which must NOT be decoded with .iso8601.
+        let json = """
+        {
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "Max",
+            "breed": null,
+            "sex": null,
+            "date_of_birth": "2020-05-12",
+            "notes": null,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }
+        """
+        let dto = try decoder.decode(DogDTO.self, from: Data(json.utf8))
+        let dog = Dog(dto: dto)
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: dog.dateOfBirth)
+        XCTAssertEqual(components.year, 2020)
+        XCTAssertEqual(components.month, 5)
+        XCTAssertEqual(components.day, 12)
+    }
+
+    func testDogBirthDateWireRoundTrip() throws {
+        let date = try XCTUnwrap(Calendar.current.date(from: DateComponents(year: 2021, month: 3, day: 14)))
+        let wire = BarklyDateFormatter.birthDate(date)
+        XCTAssertEqual(wire, "2021-03-14")
+        let parsed = try XCTUnwrap(BarklyDateFormatter.parseBirthDate(wire))
+        XCTAssertEqual(BarklyDateFormatter.birthDate(parsed), "2021-03-14")
+    }
+
     func testAnalysisDTODecodesAndMapsToDomain() throws {
         let json = """
         {

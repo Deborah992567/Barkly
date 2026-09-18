@@ -134,20 +134,7 @@ struct APIAnalysisRepository: AnalysisRepository {
     }
 
     private static func map(_ error: APIClientError) -> Error {
-        switch error {
-        case .unauthorized:
-            return AppRepositoryError.unauthorized
-        case .http(let status, _, _):
-            switch status {
-            case 401: return AppRepositoryError.unauthorized
-            case 422: return AppRepositoryError.invalidData
-            default: return AppRepositoryError.serviceUnavailable
-            }
-        case .transport:
-            return AppRepositoryError.offline
-        case .decoding, .invalidRequest:
-            return AppRepositoryError.invalidData
-        }
+        AppRepositoryError.from(clientError: error)
     }
 }
 

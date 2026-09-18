@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct AuthView: View {
     @Environment(AppContainer.self) private var app
@@ -14,6 +15,7 @@ struct AuthView: View {
     @State private var displayName = ""
     @State private var errorMessage: String?
     @State private var isBusy = false
+    @State private var revealPassword = false
     @FocusState private var focusedField: Field?
 
     private enum Field {
@@ -92,10 +94,11 @@ struct AuthView: View {
                 "Password",
                 text: $password,
                 icon: "lock.fill",
-                isSecure: true
+                isSecure: true,
+                revealed: $revealPassword
             )
             .focused($focusedField, equals: .password)
-            .textContentType(mode == .login ? .password : .newPassword)
+            .textContentType(editablePasswordContentType)
             .submitLabel(.go)
             .onSubmit { submit() }
 
@@ -139,6 +142,11 @@ struct AuthView: View {
                 .frame(minHeight: 44)
         }
         .accessibilityHint("Switches between signing in and creating an account")
+    }
+
+    private var editablePasswordContentType: UITextContentType? {
+        guard !revealPassword, password.isEmpty else { return nil }
+        return mode == .login ? UITextContentType.password : .newPassword
     }
 
     private func submit() {
@@ -186,12 +194,20 @@ struct BarklyTextField: View {
     @Binding private var text: String
     private let icon: String
     private let isSecure: Bool
+    @Binding private var revealed: Bool
 
-    init(_ title: String, text: Binding<String>, icon: String, isSecure: Bool = false) {
+    init(
+        _ title: String,
+        text: Binding<String>,
+        icon: String,
+        isSecure: Bool = false,
+        revealed: Binding<Bool>? = nil
+    ) {
         self.title = title
         _text = text
         self.icon = icon
         self.isSecure = isSecure
+        _revealed = revealed ?? .constant(false)
     }
 
     var body: some View {
@@ -201,7 +217,7 @@ struct BarklyTextField: View {
                 .foregroundStyle(BarklyColor.secondaryText)
                 .frame(width: 22)
             Group {
-                if isSecure {
+                if isSecure && !revealed {
                     SecureField(title, text: $text)
                 } else {
                     TextField(title, text: $text)
@@ -209,6 +225,19 @@ struct BarklyTextField: View {
             }
             .font(BarklyFont.body)
             .foregroundStyle(BarklyColor.primaryText)
+            if isSecure {
+                Button {
+                    revealed.toggle()
+                } label: {
+                    Image(systemName: revealed ? "eye.slash.fill" : "eye.fill")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(BarklyColor.secondaryText)
+                        .frame(minWidth: 26, minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(revealed ? "Hide password" : "Show password")
+                .accessibilityIdentifier("auth_password_toggle")
+            }
         }
         .padding(.horizontal, 14)
         .frame(minHeight: 50)

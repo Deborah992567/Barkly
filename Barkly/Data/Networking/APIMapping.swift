@@ -8,7 +8,7 @@ extension Dog {
             id: dto.id,
             name: dto.name,
             breed: dto.breed ?? "",
-            dateOfBirth: dto.dateOfBirth ?? Date(),
+            dateOfBirth: dto.dateOfBirth.flatMap(BarklyDateFormatter.parseBirthDate) ?? Date(),
             notes: dto.notes
         )
     }

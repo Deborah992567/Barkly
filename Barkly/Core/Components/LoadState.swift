@@ -55,6 +55,12 @@ enum ErrorMapper {
                     message: "Your session has expired. Sign in again to continue.",
                     recovery: .retry
                 )
+            case .validation(let message):
+                return AppFailure(
+                    title: "Check the details",
+                    message: message,
+                    recovery: .retry
+                )
             }
         }
         return AppFailure(

@@ -6,12 +6,12 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if app.usesBackend && !app.authService.isAuthenticated {
-                AuthView()
-            } else if app.hasCompletedOnboarding {
-                AppTabView()
-            } else {
+            if !app.hasCompletedOnboarding {
                 WelcomeView()
+            } else if app.usesBackend && !app.authService.isAuthenticated {
+                AuthView()
+            } else {
+                AppTabView()
             }
         }
         .transition(.opacity.combined(with: .scale(scale: 0.985)))

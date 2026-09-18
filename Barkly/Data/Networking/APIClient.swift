@@ -188,6 +188,14 @@ actor APIClient: Sendable {
         if let message = object["message"] as? String {
             return message
         }
+        if let error = object["error"] as? [String: Any] {
+            if let message = error["message"] as? String {
+                return message
+            }
+            if let code = error["code"] as? String {
+                return code
+            }
+        }
         if let detail = object["detail"] as? String {
             return detail
         }

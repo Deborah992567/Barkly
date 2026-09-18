@@ -56,15 +56,6 @@ struct APIHistoryRepository: HistoryRepository {
     }
 
     private static func map(_ error: APIClientError) -> Error {
-        switch error {
-        case .unauthorized:
-            return AppRepositoryError.unauthorized
-        case .http(let status, _, _):
-            return status == 401 ? AppRepositoryError.unauthorized : AppRepositoryError.serviceUnavailable
-        case .transport:
-            return AppRepositoryError.offline
-        case .decoding, .invalidRequest:
-            return AppRepositoryError.invalidData
-        }
+        AppRepositoryError.from(clientError: error)
     }
 }

@@ -33,7 +33,7 @@ struct APIDogRepository: DogRepository {
             name: dog.name,
             breed: dog.breed.isEmpty ? nil : dog.breed,
             sex: nil,
-            dateOfBirth: dog.dateOfBirth,
+            dateOfBirth: BarklyDateFormatter.birthDate(dog.dateOfBirth),
             notes: dog.notes
         )
         do {
@@ -49,7 +49,7 @@ struct APIDogRepository: DogRepository {
             name: name,
             breed: breed,
             sex: nil,
-            dateOfBirth: dateOfBirth,
+            dateOfBirth: BarklyDateFormatter.birthDate(dateOfBirth),
             notes: notes
         )
         do {
@@ -69,15 +69,6 @@ struct APIDogRepository: DogRepository {
     }
 
     private static func map(_ error: APIClientError) -> Error {
-        switch error {
-        case .unauthorized:
-            return AppRepositoryError.unauthorized
-        case .http(let status, _, _):
-            return status == 401 ? AppRepositoryError.unauthorized : AppRepositoryError.serviceUnavailable
-        case .transport:
-            return AppRepositoryError.offline
-        case .decoding, .invalidRequest:
-            return AppRepositoryError.invalidData
-        }
+        AppRepositoryError.from(clientError: error)
     }
 }

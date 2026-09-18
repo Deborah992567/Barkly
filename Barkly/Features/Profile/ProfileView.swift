@@ -3,6 +3,8 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(AppContainer.self) private var app
     @State private var showAddDog = false
+    @State private var confirmLogOut = false
+    @State private var isSigningOut = false
 
     private let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
 
@@ -15,6 +17,10 @@ struct ProfileView: View {
                     dogsSection
 
                     settingsSection
+
+                    if app.usesBackend {
+                        signOutSection
+                    }
 
                     footer
                 }
@@ -174,6 +180,64 @@ struct ProfileView: View {
         }
     }
 
+    private var signOutSection: some View {
+        VStack(spacing: BarklySpacing.sm) {
+            Button {
+                confirmLogOut = true
+            } label: {
+                HStack(spacing: BarklySpacing.md) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: BarklyRadius.small, style: .continuous)
+                            .fill(BarklyColor.error.opacity(0.12))
+                            .frame(width: 34, height: 34)
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(BarklyColor.error)
+                    }
+                    .accessibilityHidden(true)
+                    Text(isSigningOut ? "Signing out…" : "Sign Out")
+                        .font(BarklyFont.label)
+                        .foregroundStyle(BarklyColor.error)
+                    Spacer(minLength: 0)
+                    if isSigningOut {
+                        ProgressView()
+                            .tint(BarklyColor.error)
+                    }
+                }
+                .padding(.horizontal, BarklySpacing.md)
+                .padding(.vertical, BarklySpacing.md)
+                .background(BarklyColor.elevatedSurface, in: RoundedRectangle(cornerRadius: BarklyRadius.card, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: BarklyRadius.card, style: .continuous)
+                        .strokeBorder(BarklyColor.error.opacity(0.25), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(isSigningOut)
+            .accessibilityIdentifier("profile_sign_out")
+            .confirmationDialog(
+                "Sign out of BARKLY?",
+                isPresented: $confirmLogOut,
+                titleVisibility: .visible
+            ) {
+                Button("Sign Out", role: .destructive) {
+                    signOut()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Your analyses stay saved. You'll need to sign in again to view them.")
+            }
+        }
+    }
+
+    private func signOut() {
+        isSigningOut = true
+        Task {
+            defer { isSigningOut = false }
+            await app.signOut()
+        }
+    }
+
     private var footer: some View {
         VStack(spacing: BarklySpacing.sm) {
             Text("BARKLY")
@@ -194,6 +258,7 @@ struct SettingsRow: View {
     let tint: Color
     let title: String
     var subtitle: String? = nil
+    var showsChevron: Bool = true
 
     var body: some View {
         HStack(spacing: BarklySpacing.md) {
@@ -217,10 +282,12 @@ struct SettingsRow: View {
                 }
             }
             Spacer(minLength: 0)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(BarklyColor.tertiaryText)
-                .accessibilityHidden(true)
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(BarklyColor.tertiaryText)
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.vertical, BarklySpacing.md)
         .contentShape(Rectangle())

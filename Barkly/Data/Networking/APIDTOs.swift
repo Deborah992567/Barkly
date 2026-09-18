@@ -23,7 +23,7 @@ struct DogDTO: Decodable, Sendable {
     let name: String
     let breed: String?
     let sex: String?
-    let dateOfBirth: Date?
+    let dateOfBirth: String?
     let notes: String?
     let createdAt: Date
     let updatedAt: Date
@@ -33,7 +33,7 @@ struct DogCreateDTO: Encodable, Sendable {
     let name: String
     let breed: String?
     let sex: String?
-    let dateOfBirth: Date?
+    let dateOfBirth: String?
     let notes: String?
 }
 
